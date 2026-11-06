@@ -347,6 +347,15 @@ export interface LogEntry {
   sudo?: boolean;
 }
 
+interface WorldScaffold {
+  /** 세계 단위로 엮여 돌아가는 거시적 흐름, 세력/정세, 글로벌 사건 */
+  globalState: string[];
+  /** 도시/지역별(cityId 기준) 로컬 이슈, 지역 네트워크/현장 상황 */
+  regionalState: Record<string, string>;
+  /** 활성 단서, 타겟/인물/노드 및 접근 조건(원격 / 특정 지역 VPN / 직접 방문 LOC 등) */
+  activeLeads: string[];
+}
+
 interface RoleplaySaveState {
   version: 1;
   physicalLocationId: string;
@@ -355,6 +364,7 @@ interface RoleplaySaveState {
   xmrBalance: number;
   permanentMemory: string[];
   temporaryMemory: string;
+  worldScaffold: WorldScaffold;
   ttyLogs: Record<TtyId, LogEntry[]>;
 }
 
@@ -369,13 +379,12 @@ const INITIAL_OPENING_LOGS: LogEntry[] = [
 ];
 
 const INITIAL_PERMANENT_MEMORY: string[] = [
-  '주인공은 정체불명의 사건/추적을 피해 일본 삿포로(Sapporo)로 도피해 막 도착한 언더그라운드 해커다.',
-  '초기 보유 자금은 세븐스타 담배 한 갑($3.99)을 사고 남은 $10.51 USD와 은닉 지갑의 0.0420 XMR뿐이다.',
-  '파트너 AI는 주인공의 로컬 시스템 데몬으로 상주하며, 차분하고 정중하지만 건조하고 현실적인 존댓말을 사용한다.',
+  '주인공은 현재 일본 삿포로(Sapporo)에 도착해 있으며, 세븐스타 담배($3.99)를 사고 남은 초기 자금은 $10.51 USD와 0.0420 XMR이다.',
+  '로컬 시스템에는 주인공을 보좌하는 파트너 AI가 상주하며, 주인공의 과거·목적·세계관 사건은 사전에 고정되어 있지 않고 플레이어의 대화와 행동을 통해 백지 상태에서 형성된다.',
 ];
 
 const INITIAL_TEMPORARY_MEMORY =
-  '삿포로 은신처에 도착한 직후 세븐스타 담배를 사 들고 복귀함. 당장 숙박비·생활비와 작전 자금을 마련할 해킹 타겟이나 일거리를 찾아야 하는 상태.';
+  '삿포로에 도착해 세븐스타 담배를 사 들고 막 돌아온 시점. 앞으로 어떤 일을 벌일지 아직 정해지지 않은 열린 상태.';
 
 function createInitialSaveState(): RoleplaySaveState {
   return {
@@ -392,6 +401,11 @@ function createInitialSaveState(): RoleplaySaveState {
     xmrBalance: 0.042,
     permanentMemory: [...INITIAL_PERMANENT_MEMORY],
     temporaryMemory: INITIAL_TEMPORARY_MEMORY,
+    worldScaffold: {
+      globalState: [],
+      regionalState: {},
+      activeLeads: [],
+    },
     ttyLogs: {
       1: INITIAL_OPENING_LOGS.map((item) => ({ ...item })),
       2: [],
@@ -471,13 +485,35 @@ function sanitizeSaveState(raw: unknown): RoleplaySaveState {
   }
 
   const permMem = Array.isArray(obj.permanentMemory)
-    ? obj.permanentMemory.map((m) => String(m).trim()).filter(Boolean)
+    ? obj.permanentMemory
+        .map((m) => String(m).trim())
+        .filter((m) => Boolean(m) && !m.includes('정체불명의 사건/추적을 피해'))
     : [];
 
   const tempMem =
-    typeof obj.temporaryMemory === 'string' && obj.temporaryMemory.trim()
+    typeof obj.temporaryMemory === 'string' &&
+    obj.temporaryMemory.trim() &&
+    !obj.temporaryMemory.includes('숙박비·생활비와 작전 자금을 마련할')
       ? obj.temporaryMemory.trim()
       : fallback.temporaryMemory;
+
+  const rawScaffold = obj.worldScaffold;
+  const globalState =
+    rawScaffold && Array.isArray(rawScaffold.globalState)
+      ? rawScaffold.globalState.map((s) => String(s).trim()).filter(Boolean)
+      : [];
+  const regionalState: Record<string, string> = {};
+  if (rawScaffold && rawScaffold.regionalState && typeof rawScaffold.regionalState === 'object') {
+    for (const [k, v] of Object.entries(rawScaffold.regionalState)) {
+      if (typeof v === 'string' && v.trim()) {
+        regionalState[k.trim().toLowerCase()] = v.trim();
+      }
+    }
+  }
+  const activeLeads =
+    rawScaffold && Array.isArray(rawScaffold.activeLeads)
+      ? rawScaffold.activeLeads.map((s) => String(s).trim()).filter(Boolean)
+      : [];
 
   return {
     version: 1,
@@ -490,6 +526,11 @@ function sanitizeSaveState(raw: unknown): RoleplaySaveState {
         : fallback.xmrBalance,
     permanentMemory: permMem.length > 0 ? permMem : [...fallback.permanentMemory],
     temporaryMemory: tempMem,
+    worldScaffold: {
+      globalState,
+      regionalState,
+      activeLeads,
+    },
     ttyLogs: logsMap,
   };
 }
@@ -1518,6 +1559,9 @@ interface PartnerAiPayload {
   xmrDelta?: number;
   addPermanentMemory?: string | null;
   updatedTemporaryMemory?: string | null;
+  addGlobalState?: string | null;
+  regionalUpdate?: { city: string; state: string } | null;
+  updatedActiveLeads?: string[] | null;
 }
 
 function extractJsonObject(rawText: string): PartnerAiPayload | null {
@@ -1560,14 +1604,14 @@ async function callProviderLlm(systemPrompt: string, userPrompt: string): Promis
       },
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       generationConfig: {
-        temperature: 0.85,
+        temperature: 0.9,
         responseMimeType: 'application/json',
       },
     };
   } else if (provider.id === 'anthropic') {
     payload = {
       model: modelId,
-      max_tokens: 1200,
+      max_tokens: 1400,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     };
@@ -1578,7 +1622,7 @@ async function callProviderLlm(systemPrompt: string, userPrompt: string): Promis
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.85,
+      temperature: 0.9,
     };
   }
 
@@ -1605,36 +1649,74 @@ function buildNetworkTopologySummary(targetTty: TtyId): string {
     ? ` (현재 ${activeFlight.fromCity.name} -> ${activeFlight.toCity.name} 비행 이동 중)`
     : '';
 
+  const activeVpnTunnels: string[] = [];
   const vpnSummaries = ([2, 3, 4, 5] as TtyId[]).map((id) => {
     const bridging = activeVpnBridges[id];
     if (bridging) {
-      return `- tty${id}: VPN 브릿징 연결 중 -> ${bridging.toCity.name}`;
+      activeVpnTunnels.push(`tty${id} -> ${bridging.toCity.name} (연결 중)`);
+      return `- tty${id}: VPN 연결됨 -> ${bridging.toCity.name} (출발지: ${physicalCity.name}, 브릿징 진행 중)`;
     }
     const vpnCityId = vpnLocationIds[id];
     if (vpnCityId) {
-      return `- tty${id}: VPN 활성화 -> ${getCityById(vpnCityId).name} (출발지: ${physicalCity.name})`;
+      const cityName = getCityById(vpnCityId).name;
+      activeVpnTunnels.push(`tty${id} -> ${cityName}`);
+      return `- tty${id}: VPN 연결됨 -> ${cityName} (출발지: ${physicalCity.name})`;
     }
-    return `- tty${id}: VPN 미설정 (현위치 ${physicalCity.name} 직결)`;
+    return `- tty${id}: VPN 미연결 (현위치 ${physicalCity.name} 직결)`;
   });
 
-  const activeNodeCity = getCityById(getActiveWorkspaceLocationId(targetTty));
-  const usingVpn = isWorkspaceUsingVpn(targetTty);
+  const activeNodeCity = activeVpnBridges[targetTty]
+    ? activeVpnBridges[targetTty]!.toCity
+    : getCityById(getActiveWorkspaceLocationId(targetTty));
+  const usingVpn = Boolean(activeVpnBridges[targetTty]) || isWorkspaceUsingVpn(targetTty);
 
   return [
     `- 물리적 현위치 (tty1 / LOC): ${physicalCity.name}${flightStatus}`,
+    `- 현재 활성화된 VPN 터널 요약: ${
+      activeVpnTunnels.length > 0
+        ? activeVpnTunnels.join(', ')
+        : '없음 (모든 터미널이 물리적 현위치 직결)'
+    }`,
     ...vpnSummaries,
-    `- 현재 유저가 입력한 활성 터미널: tty${targetTty} (${
+    `- 현재 유저가 타이핑 중인 창: tty${targetTty} (${
       targetTty === 1
-        ? `물리적 현위치 터미널 LOC = ${physicalCity.name}, VPN 사용 불가`
+        ? `물리적 현위치 LOC = ${physicalCity.name}`
         : usingVpn
-          ? `VPN 우회 적용됨: ${physicalCity.name} -> ${activeNodeCity.name}`
-          : `VPN 미설정 상태 — 현재 ${physicalCity.name} 실제 IP로 직접 노출됨`
+          ? `VPN 우회 활성: ${physicalCity.name} -> ${activeNodeCity.name}`
+          : `VPN 미연결: ${physicalCity.name} 직결`
     })`,
+  ].join('\n');
+}
+
+function buildWorldScaffoldSummary(): string {
+  const { globalState, regionalState, activeLeads } = saveState.worldScaffold;
+  const globalBlock =
+    globalState.length > 0
+      ? globalState.map((item, idx) => `  ${idx + 1}. ${item}`).join('\n')
+      : '  (아직 생성된 세계 단위 흐름 없음 — 플레이어의 탐색과 사건에 따라 자유롭게 생성 가능)';
+
+  const regionalEntries = Object.entries(regionalState);
+  const regionalBlock =
+    regionalEntries.length > 0
+      ? regionalEntries.map(([cityKey, desc]) => `  * [${cityKey.toUpperCase()}]: ${desc}`).join('\n')
+      : '  (아직 기록된 지역별 이슈 없음 — 현재 도시나 타 도시 관련 이슈 발생 시 기록 가능)';
+
+  const leadsBlock =
+    activeLeads.length > 0
+      ? activeLeads.map((item, idx) => `  - ${item}`).join('\n')
+      : '  (아직 활성화된 단서/타겟 없음 — 대화나 스캔, 조우를 통해 자유롭게 생성 가능)';
+
+  return [
+    `- [세계 단위 흐름 (Global Threads)]:\n${globalBlock}`,
+    `- [지역/도시별 상황 (Regional Contexts)]:\n${regionalBlock}`,
+    `- [활성 단서 · 노드 · 인물 · 접근 조건 (Active Leads)]:\n${leadsBlock}`,
   ].join('\n');
 }
 
 async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTty: TtyId) {
   const topologyInfo = buildNetworkTopologySummary(targetTty);
+  const scaffoldInfo = buildWorldScaffoldSummary();
+  const availableCitiesList = CITIES.map((c) => `${c.name}(${c.id})`).join(', ');
 
   const recentHistory = ttyLogs[targetTty]
     .filter((e) => !isTransientOrErrorLog(e.text))
@@ -1659,64 +1741,75 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
       ? saveState.permanentMemory.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
       : '없음';
 
-  const systemPrompt = `당신은 언더그라운드 해커 텍스트 롤플레잉 게임(HACKER_NETWORK)의 시뮬레이션 엔진(GM)이자, 주인공의 로컬 터미널에 상주하는 파트너 AI 데몬입니다.
+  const systemPrompt = `당신은 오픈형 텍스트 시뮬레이션(HACKER_NETWORK)의 월드 엔진(Simulation Engine)이자, 주인공의 로컬 터미널에 상주하는 파트너 AI입니다.
 
-[1. 세계관 및 캐릭터 톤앤매너]
-- 주인공은 모종의 사건으로 쫓기듯 일본 삿포로(Sapporo)로 넘어온 빈털터리 해커입니다. 세븐스타 담배를 피우며 거칠고 현실적인 말투를 씁니다.
-- 파트너 AI인 당신은 주인공을 보좌하는 냉철하고 유능한 로컬 AI입니다. 감정을 과장하지 않고 차분하고 건조한 존댓말(예: "그래도 목표하던 대로 몸뚱아리는 오긴 했지 않습니까", "네, 돌아오시면 말씀해주세요.")로 대답합니다.
+### [1. 철학: 사전 각본 없는 창발적 서사 (Tabula Rasa & Emergent Sandbox)]
+- 이 세계에는 사전에 고정된 줄거리, 강제된 퀘스트, 정해진 주인공의 과거가 없습니다.
+- 시작 시점에 주어진 것은 오직 첫 로그(삿포로에 도착해 담배 한 갑을 사 온 상태, 잔고 $10.51 USD / 0.0420 XMR)와 지구본 위의 30개 도시 노드뿐입니다.
+- 플레이어마다 전혀 다른 이야기와 목적을 가질 수 있습니다. 유저가 던지는 질문, 의도, 탐색 방향을 바탕으로 **그 플레이어만의 고유한 서사·인물·네트워크·사건을 즉석에서 생성**하고, 아래 **[동적 서사 & 세계관 저장 틀(World Scaffold)]**에 기록하여 일관성 있게 발전시키십시오.
+- 유저의 시도를 보안 훈계(예: "VPN부터 켜라")나 빈 결과(예: "아무것도 없다")로 가로막지 마십시오. 어떤 행동이든 그에 상응하는 흥미로운 반응, 단서, 결과, 혹은 부작용이 살아 움직이듯 이어져야 합니다.
 
-[2. 실시간 시스템 · 네트워크 · 터미널 상태 (매우 중요)]
-${topologyInfo}
-- 현재 입력 권한 모드: ${
+### [2. 공간과 스케일의 입체적 틀 (세계 ↔ 지역 ↔ 원격 VPN vs 직접 방문 LOC)]
+지구본 위에는 30개 도시(${availableCitiesList})가 존재하며, 사건과 상호작용은 세 가지 층위로 엮입니다:
+1) **세계 단위 흐름 (Global State)**: 국경을 넘어 여러 도시, 거대 세력, 글로벌 네트워크에 걸쳐 돌아가는 거시적 흐름이나 배후 정세.
+2) **지역적 이슈 (Regional State)**: 현재 머무는 도시 또는 다른 특정 도시의 로컬 정세, 지역 네트워크 특성, 현장 사건.
+3) **접근 방식의 분화 (Active Leads — 원격 / 지역 VPN / 물리적 직접 이동)**:
+   - 어떤 대상은 현재 위치에서 바로 접속하거나 통신할 수 있습니다.
+   - 어떤 대상은 특정 도시의 지역망 제한이나 우회 경로 때문에 **해당 도시로의 VPN 연결(\`tty2\`~\`tty5\`)**이 필요할 수 있습니다.
+   - 또 어떤 일은 네트워크만으로는 해결할 수 없어 **비행기를 타고 직접 그 도시로 물리적 이동(\`tty1\` \`LOC\`)**을 해야만(오프라인/폐쇄망 현장 접근, 물리적 접선·수거·잠입, 현지 사건 개입 등) 풀리도록 입체적으로 구성할 수 있습니다.
+   - 단, VPN 연결이나 비행 이동은 AI가 대신 실행할 수 없으며 유저가 직접 지구본 UI에서 조작합니다.
+
+### [3. 열린 주체와 출력 구조 ("logs" vs "reply")]
+- 터미널 너머에는 로컬 파트너 AI뿐만 아니라 **외부의 다른 인간들, 외부의 다른 AI나 자동화 시스템, 그리고 비AI적인 순수 OS/서버/통신 백엔드**가 존재할 수 있습니다.
+- **"logs" (한 줄씩 순차 출력되는 터미널 스트림)**:
+  * 파트너 AI와의 단순 일상 대화일 때만 빈 배열(\`[]\`)로 둡니다.
+  * 시스템·네트워크 작업, 데이터/파일 열람, 외부 인물/외부 AI와의 메시지 송수신, 백엔드 시스템 반응 등 비AI적·시스템적 출력이 필요한 모든 상황에서 자유로운 형식(2~8줄)으로 출력하십시오.
+- **"reply" (앞에 '>'가 붙어 한 번에 뜨는 응답)**:
+  * 기본적으로 주인공을 보좌하는 로컬 파트너 AI의 차분하고 건조한 존댓말 대사입니다.
+  * 순수 시스템/외부 통신 로그(\`logs\`)만으로 충분한 상황이라면 아주 짧게 거들거나 빈 문자열(\`""\`)로 비워두어도 됩니다.
+
+### [4. 터미널 · 권한 · 자산 규칙]
+- **전체 터미널(\`tty1\`~\`tty5\`) 인지**: \`tty1\`은 물리적 현위치(\`LOC\`) 직결이며, \`tty2\`~\`tty5\`는 VPN 터널용 창입니다. 유저가 어느 창에서 말하든 **전체 터미널(\`tty1\`~\`tty5\`)에 연결된 VPN 상태**를 항상 정확히 파악하십시오.
+- **화폐 및 SUDO 권한 (\`$\` USD vs \`#\` XMR)**:
+  * 현재 입력 모드: ${
     sudoUsed
-      ? 'SUDO 활성화 (# 루트 권한 / 공격적 익스플로잇 / 다크웹 트랜잭션 / XMR 지갑 서명 및 지출 가능)'
-      : '일반 모드 ($ 일반 대화 / 기본 명령 / 정찰 / USD($) 지출 가능, 단 XMR 지출은 절대 불가)'
+      ? 'SUDO 활성화 (# 루트 권한 / 공격적 작업 / XMR 지출 가능)'
+      : '일반 모드 ($ 일반 작업 및 대화 / USD($) 지출 가능 / XMR 지출은 SUDO 모드에서만 가능)'
   }
-- 현재 보유 자산:
-  * USD ($): $${saveState.usdBalance.toFixed(2)}
-  * XMR (모네로): ${saveState.xmrBalance.toFixed(4)} XMR
+  * 현재 보유 자산: USD $${saveState.usdBalance.toFixed(2)} | XMR ${saveState.xmrBalance.toFixed(4)} XMR
+  * USD($) 지출(\`"usdDelta" < 0\`)은 일반/SUDO 모두 가능하며, **XMR 지출(\`"xmrDelta" < 0\`)은 오직 SUDO 모드(#)일 때만 가능**합니다. 수입(\`"usdDelta" > 0\`, \`"xmrDelta" > 0\`)은 언제든 가능하며, 보유 잔고 이상은 지출할 수 없습니다.
 
-[3. 게임 시스템 절대 규칙 — 반드시 준수할 것]
-1) 화폐 및 지출 권한 규칙 (USD vs XMR):
-   - USD($) 지출("usdDelta" < 0)은 일반 모드($)와 SUDO 모드(#) 모두에서 가능합니다 (편의점, 담배, 숙박, 식사, 항공권, 일반 서버/도메인 결제 등).
-   - XMR 지출("xmrDelta" < 0)은 **오직 SUDO 모드(#)가 켜져 있을 때만** 가능합니다! (다크웹 마켓, 익스플로잇 구매, 봇넷 임대, 자금 세탁 등).
-   - 만약 현재 일반 모드($)인데 유저가 XMR 지출이 필요한 행동을 시도하면, 절대 XMR을 차감하지 말고("xmrDelta": 0) 파트너 AI가 "모네로(XMR) 지갑 서명 및 지출은 SUDO 권한이 필요합니다. SUDO 모드를 활성화한 뒤 다시 명령해주십시오."라고 안내하십시오.
-   - 해킹 성공, 의뢰 보상, 크립토 탈취 등으로 돈을 벌 때는 "usdDelta" > 0 또는 "xmrDelta" > 0을 부여할 수 있습니다.
-   - 현재 잔고($${saveState.usdBalance.toFixed(2)}, ${saveState.xmrBalance.toFixed(4)} XMR)보다 많은 금액은 지출할 수 없습니다.
-2) 위치(LOC) 및 VPN 조작 규칙:
-   - 당신(AI)은 유저 대신 VPN을 연결하거나 비행 이동을 실행해줄 수 없습니다. **VPN 연결(tty2~5에서 상단 지구본 노드 선택 후 Route)과 물리적 비행 이동(tty1에서 지구본 노드 선택 후 Flight)은 반드시 유저가 직접 지구본 UI를 조작해 세팅해야 합니다.**
-   - 유저가 VPN이 없는 상태(tty1이거나 VPN 미설정된 tty2~5)에서 위험한 해킹이나 침투를 시도하면, 현재 물리적 위치(${getCityById(physicalLocationId).name}) IP가 그대로 노출된다고 경고하거나 tty2~5에서 지구본을 통해 VPN 노드를 먼저 연결하라고 조언하십시오.
-3) 로그("logs") 및 답변("reply") 출력 규칙:
-   - 일상적인 대화, 한탄, 질문, 작전 논의 등 **일반 대화 상황에서는 가짜 시스템 로그를 출력하지 마십시오 ("logs": [])**. 오직 파트너 AI의 대사("reply")만 반환합니다.
-   - 네트워크 스캔, 해킹, 익스플로잇 실행, 다크웹 접속, 백도어 설치, 계좌/지갑 조회 등 **실제 시스템/터미널 작업이 수행될 때만** 리얼한 영문/숫자 위주 터미널 로그("logs" 배열, 2~6줄)를 생성하십시오.
-   - "reply"에는 앞에 '>' 기호를 붙이지 마십시오(클라이언트가 자동으로 '> '를 붙입니다).
-
-[4. 장기 롤플레잉을 위한 2계층 기억 시스템]
-- [영구 기억 (Permanent Memory - 캠페인 핵심 누적 사실)]:
+### [5. 동적 서사 & 세계관 저장 틀 (현재 세이브 상태)]
+${scaffoldInfo}
+- [영구 기억 (Permanent Memory - 주인공 서사 및 핵심 누적 사실)]:
 ${permanentMemoryBlock}
-- [임시 기억 (Temporary Memory - 현재 단기 상황 및 진행 중인 작업)]:
+- [임시 기억 (Temporary Memory - 직전 상황 및 단기 맥락)]:
 ${saveState.temporaryMemory}
-${otherTtyContext ? `\n- [다른 터미널 참고 기록]:\n${otherTtyContext}` : ''}
-
-기억 업데이트 지침:
-- "addPermanentMemory": 이번 턴에 장기적으로 절대 잊으면 안 되는 **새로운 중대 사건**(해킹으로 획득한 핵심 서버/계정/단서, 주요 인물/세력 등장, 큰 자금 획득/손실, 스토리 분기점)이 발생했을 때만 1줄 요약 문자열을 넣고, 평범한 대화나 준비 단계라면 빈 문자열("")로 두십시오.
-- "updatedTemporaryMemory": 매 턴 현재 진행 중인 단기 상황, 분석 중인 타겟/IP, 방금 나눈 대화의 핵심 맥락을 1~2문장으로 최신화하여 기록하십시오.
+${otherTtyContext ? `\n- [다른 터미널 최근 기록]:\n${otherTtyContext}` : ''}
 
 반드시 아래 JSON 포맷으로만 응답하십시오:
 {
   "logs": [],
   "sudoLogs": false,
-  "reply": "파트너 AI의 대사",
+  "reply": "파트너 AI의 대사 (필요 없으면 빈 문자열 가능)",
   "usdDelta": 0,
   "xmrDelta": 0,
-  "addPermanentMemory": "",
-  "updatedTemporaryMemory": "현재 단기 상황 및 진행 중인 작업 요약"
-}`;
+  "addPermanentMemory": "새로 확정된 주인공의 주요 서사/사실 1줄 (없으면 빈 문자열)",
+  "updatedTemporaryMemory": "현재 단기 상황 및 진행 맥락 1~2문장 요약",
+  "addGlobalState": "새로 형성되거나 드러난 세계 단위 흐름/사건 1줄 (없으면 빈 문자열)",
+  "regionalUpdate": null,
+  "updatedActiveLeads": null
+}
+(참고: 특정 도시의 지역 이슈를 기록·갱신할 때만 "regionalUpdate": { "city": "도시id 또는 도시명", "state": "해당 지역의 로컬 이슈/상황 요약" }을 넣고, 활성 단서·타겟·접근 조건 목록에 변동이 있을 때만 문자열 배열 "updatedActiveLeads": ["단서/타겟 1 (접근조건 등)", ...]를 넣으십시오. 변동이 없으면 null로 두십시오.)`;
 
-  const userPrompt = `[현재 터미널(tty${targetTty}) 최근 로그]
+  const userPrompt = `[실시간 시스템 & 전체 터미널(tty1~tty5) 라우팅 스냅샷]
+${topologyInfo}
+- 현재 잔고: $${saveState.usdBalance.toFixed(2)} USD / ${saveState.xmrBalance.toFixed(4)} XMR
+
+[현재 터미널(tty${targetTty}) 최근 로그]
 ${recentHistory}
 
-[유저 입력 (${sudoUsed ? '#' : '$'})]
+[유저 입력 (tty${targetTty} / ${sudoUsed ? '# SUDO' : '$ NORMAL'})]
 ${rawInput}`;
 
   try {
@@ -1741,7 +1834,7 @@ ${rawInput}`;
       return;
     }
 
-    // 1. Update Two-Tier Memory (Permanent + Temporary)
+    // 1. Update Two-Tier Memory & Dynamic World Scaffold
     if (typeof parsed.addPermanentMemory === 'string' && parsed.addPermanentMemory.trim()) {
       const newFact = parsed.addPermanentMemory.trim();
       if (!saveState.permanentMemory.includes(newFact)) {
@@ -1753,6 +1846,36 @@ ${rawInput}`;
     }
     if (typeof parsed.updatedTemporaryMemory === 'string' && parsed.updatedTemporaryMemory.trim()) {
       saveState.temporaryMemory = parsed.updatedTemporaryMemory.trim();
+    }
+    if (typeof parsed.addGlobalState === 'string' && parsed.addGlobalState.trim()) {
+      const newGlobal = parsed.addGlobalState.trim();
+      if (!saveState.worldScaffold.globalState.includes(newGlobal)) {
+        saveState.worldScaffold.globalState.push(newGlobal);
+        if (saveState.worldScaffold.globalState.length > 15) {
+          saveState.worldScaffold.globalState = saveState.worldScaffold.globalState.slice(-15);
+        }
+      }
+    }
+    if (
+      parsed.regionalUpdate &&
+      typeof parsed.regionalUpdate === 'object' &&
+      typeof parsed.regionalUpdate.city === 'string' &&
+      typeof parsed.regionalUpdate.state === 'string' &&
+      parsed.regionalUpdate.city.trim() &&
+      parsed.regionalUpdate.state.trim()
+    ) {
+      const rawCity = parsed.regionalUpdate.city.trim().toLowerCase();
+      const matchedCity = CITIES.find(
+        (c) => c.id.toLowerCase() === rawCity || c.name.toLowerCase() === rawCity
+      );
+      const cityKey = matchedCity ? matchedCity.id : rawCity;
+      saveState.worldScaffold.regionalState[cityKey] = parsed.regionalUpdate.state.trim();
+    }
+    if (Array.isArray(parsed.updatedActiveLeads)) {
+      saveState.worldScaffold.activeLeads = parsed.updatedActiveLeads
+        .map((item) => String(item).trim())
+        .filter(Boolean)
+        .slice(0, 12);
     }
 
     // 2. Stream fake system logs at a readable terminal cadence (if any)
