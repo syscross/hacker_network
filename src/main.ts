@@ -1,5 +1,13 @@
 import './index.css';
+import { registerSW } from 'virtual:pwa-register';
 import { WORLD_COASTLINES, WORLD_BORDERS } from './worldMapData';
+
+registerSW({ immediate: true });
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 interface ModelOption {
   id: string;
@@ -524,6 +532,7 @@ const vpnLocationIds: Record<TtyId, string | null> = {
 };
 
 let selectedLocationId: string = physicalLocationId;
+let unbootedSelectedCityId: string | null = null;
 let displayedUsd = 0;
 let displayedXmr = 0;
 
@@ -583,18 +592,29 @@ if (root) {
       <!-- Fixed Top Bar (40px, scanlines applied strictly to this top bar) -->
       <header
         style="height: ${HEADER_HEIGHT}px;"
-        class="relative z-10 px-4 bg-[#0a0a0a] border-b border-neutral-800 flex items-center justify-between gap-8 overflow-hidden shrink-0"
+        class="relative z-10 w-full bg-[#0a0a0a] border-b border-neutral-800 overflow-hidden shrink-0"
       >
         <div id="scanline-overlay" class="pointer-events-none absolute inset-0 crt-scanlines z-20"></div>
-        <div class="relative z-10 text-xs font-bold tracking-wider text-neutral-100 whitespace-nowrap shrink-0">
-          HACKER_NETWORK
+        <div class="relative z-10 w-full max-w-5xl h-full mx-auto px-3 sm:px-4 flex items-center justify-between gap-4">
+          <div class="text-xs font-bold tracking-wider text-neutral-100 whitespace-nowrap shrink-0">
+            HACKER_NETWORK
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              id="top-pwa-install-btn"
+              type="button"
+              class="hidden px-2.5 py-1 text-xs font-bold text-black bg-neutral-100 border border-neutral-100 hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              INSTALL APP
+            </button>
+            <button
+              id="open-config-btn"
+              class="px-3 py-1 text-xs font-medium text-neutral-200 bg-neutral-900 border border-neutral-700 hover:border-neutral-200 hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              CONFIG
+            </button>
+          </div>
         </div>
-        <button
-          id="open-config-btn"
-          class="relative z-10 px-3 py-1 text-xs font-medium text-neutral-200 bg-neutral-900 border border-neutral-700 hover:border-neutral-200 hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
-        >
-          CONFIG
-        </button>
       </header>
 
       <!-- Main Flex Column Workspace (Globe Tile + Elastic Log Tile + Unified Input Tile) -->
@@ -611,7 +631,7 @@ if (root) {
           <div class="h-7 px-3 border-b border-neutral-800 flex items-center justify-between text-[11px] text-neutral-400 shrink-0">
             <span class="text-neutral-200 font-bold">globe://wireframe</span>
             <span id="globe-coords" class="text-neutral-400 tabular-nums whitespace-nowrap shrink-0">
-              LAT +43.1° · LON +141.4°
+              LAT +30.0° · LON +141.4°
             </span>
           </div>
 
@@ -1420,6 +1440,7 @@ async function runBootSequence() {
   renderLogLines(true);
 
   // Set globe to current location & show location badge
+  unbootedSelectedCityId = null;
   const currentCityId = getActiveWorkspaceLocationId(activeTty);
   selectedLocationId = currentCityId;
   const currentCity = getCityById(currentCityId);
@@ -1815,8 +1836,63 @@ inputFormEl?.addEventListener('submit', async (e) => {
 });
 
 // ==========================================
-// Config Modal Rendering
+// PWA Install Prompt & Config Modal Rendering
 // ==========================================
+let deferredPwaPrompt: BeforeInstallPromptEvent | null = null;
+let isPwaInstalled =
+  window.matchMedia('(display-mode: standalone)').matches ||
+  (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+const isIosDevice = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+let showPwaGuideInModal = false;
+
+function updateTopPwaInstallButton() {
+  const btn = document.getElementById('top-pwa-install-btn');
+  if (!btn) return;
+  if (!isPwaInstalled && (deferredPwaPrompt !== null || isIosDevice)) {
+    btn.classList.remove('hidden');
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+
+async function triggerPwaInstall() {
+  if (deferredPwaPrompt) {
+    await deferredPwaPrompt.prompt();
+    const { outcome } = await deferredPwaPrompt.userChoice;
+    if (outcome === 'accepted') {
+      isPwaInstalled = true;
+      deferredPwaPrompt = null;
+    }
+    updateTopPwaInstallButton();
+    if (isConfigOpen) renderModalOnly();
+    return;
+  }
+  showPwaGuideInModal = true;
+  isConfigOpen = true;
+  renderModalOnly();
+}
+
+window.addEventListener('beforeinstallprompt', (e: Event) => {
+  e.preventDefault();
+  deferredPwaPrompt = e as BeforeInstallPromptEvent;
+  updateTopPwaInstallButton();
+  if (isConfigOpen) renderModalOnly();
+});
+
+window.addEventListener('appinstalled', () => {
+  isPwaInstalled = true;
+  deferredPwaPrompt = null;
+  showPwaGuideInModal = false;
+  updateTopPwaInstallButton();
+  if (isConfigOpen) renderModalOnly();
+});
+
+document.getElementById('top-pwa-install-btn')?.addEventListener('click', () => {
+  triggerPwaInstall();
+});
+
+updateTopPwaInstallButton();
+
 function renderModalOnly() {
   const modalMount = document.getElementById('modal-mount');
   const scanlineEl = document.getElementById('scanline-overlay');
@@ -1975,13 +2051,28 @@ function renderModalOnly() {
           }
         </div>
 
-        <div class="flex items-center justify-between border-t border-neutral-800 pt-3">
-          <button
-            id="toggle-scanline-btn"
-            class="px-2.5 py-1 border border-neutral-700 hover:border-neutral-300 text-neutral-300 cursor-pointer whitespace-nowrap shrink-0"
-          >
-            topbar_scanlines: ${config.crtScanlines ? 'on' : 'off'}
-          </button>
+        <div class="flex items-center justify-between gap-2 border-t border-neutral-800 pt-3">
+          <div class="flex items-center gap-1.5">
+            <button
+              id="toggle-scanline-btn"
+              class="px-2.5 py-1 border border-neutral-700 hover:border-neutral-300 text-neutral-300 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              scanlines: ${config.crtScanlines ? 'on' : 'off'}
+            </button>
+            ${
+              !isPwaInstalled
+                ? `
+            <button
+              id="modal-pwa-install-btn"
+              type="button"
+              class="px-2.5 py-1 border border-neutral-400 text-neutral-100 hover:bg-neutral-100 hover:text-black font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              앱 설치 (PWA)
+            </button>
+            `
+                : `<span class="text-[10px] text-neutral-500 px-1.5">PWA INSTALLED</span>`
+            }
+          </div>
           <button
             id="save-close-btn"
             class="px-4 py-1.5 bg-neutral-100 text-black font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
@@ -1989,6 +2080,24 @@ function renderModalOnly() {
             SAVE & CLOSE
           </button>
         </div>
+
+        ${
+          showPwaGuideInModal
+            ? `
+        <div class="border border-neutral-500 bg-black p-3 space-y-1.5 text-[11px] text-neutral-300">
+          <div class="flex items-center justify-between text-neutral-100 font-bold">
+            <span>[PWA 브라우저 앱 설치 안내]</span>
+            <button id="close-pwa-guide-btn" type="button" class="text-neutral-400 hover:text-white cursor-pointer">[X]</button>
+          </div>
+          ${
+            isIosDevice
+              ? `<p>1. Safari 하단 <strong>공유(Share)</strong> 버튼을 누릅니다.<br/>2. 메뉴에서 <strong>홈 화면에 추가(Add to Home Screen)</strong>를 선택하세요.</p>`
+              : `<p>브라우저 주소창 우측의 <strong>앱 설치(Install)</strong> 아이콘을 누르거나, 브라우저 메뉴(⋮) &rarr; <strong>앱 설치 / 홈 화면에 추가</strong>를 선택하면 독립 실행형 앱으로 설치됩니다.</p>`
+          }
+        </div>
+        `
+            : ''
+        }
       </section>
     </div>
   `;
@@ -2145,6 +2254,7 @@ function renderModalOnly() {
     }
     physicalLocationId = saveState.physicalLocationId;
     selectedLocationId = physicalLocationId;
+    unbootedSelectedCityId = null;
     activeTty = 1;
 
     for (const id of TTY_IDS) {
@@ -2166,6 +2276,15 @@ function renderModalOnly() {
   document.getElementById('toggle-scanline-btn')?.addEventListener('click', () => {
     config.crtScanlines = !config.crtScanlines;
     saveConfig(config);
+    renderModalOnly();
+  });
+
+  document.getElementById('modal-pwa-install-btn')?.addEventListener('click', () => {
+    triggerPwaInstall();
+  });
+
+  document.getElementById('close-pwa-guide-btn')?.addEventListener('click', () => {
+    showPwaGuideInModal = false;
     renderModalOnly();
   });
 }
@@ -2202,9 +2321,10 @@ if (globeCanvas && globeContainer) {
   const MAX_LAT_TILT = 60 * DEG2RAD;
   const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
 
+  const PRE_BOOT_TILT = 30 * DEG2RAD;
   const initialCity = getCityById(getActiveWorkspaceLocationId());
   let rotLon = -initialCity.lon * DEG2RAD;
-  let rotLat = clamp(initialCity.lat * DEG2RAD, -MAX_LAT_TILT, MAX_LAT_TILT);
+  let rotLat = PRE_BOOT_TILT;
   let targetLon = rotLon;
   let targetLat = rotLat;
 
@@ -2214,6 +2334,11 @@ if (globeCanvas && globeContainer) {
   let dragStartLon = rotLon;
   let dragStartLat = rotLat;
   let wasDragged = false;
+
+  // Multi-touch pinch-to-zoom tracking
+  const activeTouches = new Map<number, { x: number; y: number }>();
+  let initialPinchDist: number | null = null;
+  let initialPinchZoom = zoomLevel;
 
   let projectedCities: { city: CityNode; x: number; y: number; z: number }[] = [];
 
@@ -2244,15 +2369,20 @@ if (globeCanvas && globeContainer) {
   resizeGlobe();
   window.addEventListener('resize', resizeGlobe);
 
-  globeContainer.addEventListener(
-    'wheel',
-    (e: WheelEvent) => {
-      e.preventDefault();
-      const delta = -e.deltaY * 0.0012;
-      targetZoom = clamp(targetZoom + delta, MIN_ZOOM, MAX_ZOOM);
-    },
-    { passive: false }
-  );
+  const globeTileEl = document.getElementById('globe-tile');
+  const handleGlobeWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const rawDeltaY =
+      e.deltaMode === 1 ? e.deltaY * 32 : e.deltaMode === 2 ? e.deltaY * 300 : e.deltaY;
+    const delta = -rawDeltaY * 0.0022;
+    targetZoom = clamp(targetZoom + delta, MIN_ZOOM, MAX_ZOOM);
+  };
+
+  if (globeTileEl) {
+    globeTileEl.addEventListener('wheel', handleGlobeWheel, { passive: false });
+  } else {
+    globeContainer.addEventListener('wheel', handleGlobeWheel, { passive: false });
+  }
 
   if (zoomAxisEl && zoomTrackEl) {
     let zoomPointerId: number | null = null;
@@ -2296,6 +2426,15 @@ if (globeCanvas && globeContainer) {
       return;
     }
 
+    activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activeTouches.size === 2) {
+      const pts = Array.from(activeTouches.values());
+      initialPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      initialPinchZoom = targetZoom;
+      wasDragged = true;
+      return;
+    }
+
     activePointerId = e.pointerId;
     globeContainer.setPointerCapture(e.pointerId);
     dragStartX = e.clientX;
@@ -2306,6 +2445,19 @@ if (globeCanvas && globeContainer) {
   });
 
   globeContainer.addEventListener('pointermove', (e: PointerEvent) => {
+    if (activeTouches.has(e.pointerId)) {
+      activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (activeTouches.size >= 2 && initialPinchDist && initialPinchDist > 10) {
+      const pts = Array.from(activeTouches.values());
+      const curDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const scale = curDist / initialPinchDist;
+      targetZoom = clamp(initialPinchZoom * scale, MIN_ZOOM, MAX_ZOOM);
+      wasDragged = true;
+      return;
+    }
+
     if (activePointerId !== e.pointerId) return;
     const dx = e.clientX - dragStartX;
     const dy = e.clientY - dragStartY;
@@ -2323,6 +2475,11 @@ if (globeCanvas && globeContainer) {
   });
 
   const endPointerDrag = (e: PointerEvent) => {
+    activeTouches.delete(e.pointerId);
+    if (activeTouches.size < 2) {
+      initialPinchDist = null;
+    }
+
     if (activePointerId !== e.pointerId) return;
     if (globeContainer.hasPointerCapture(e.pointerId)) {
       globeContainer.releasePointerCapture(e.pointerId);
@@ -2330,7 +2487,7 @@ if (globeCanvas && globeContainer) {
     activePointerId = null;
 
     const isLockedByTransit = getActiveTransitForCurrentTty() !== null;
-    if (!wasDragged && !isLockedByTransit && bootState !== 'unbooted') {
+    if (!wasDragged && !isLockedByTransit) {
       const rect = globeContainer.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
@@ -2347,14 +2504,23 @@ if (globeCanvas && globeContainer) {
         }
       }
 
-      if (hitCity) {
-        e.preventDefault();
-        lastGlobeSelectTimestamp = performance.now();
-        selectedLocationId = hitCity.id;
-        renderLocationActionBar();
+      if (bootState === 'unbooted') {
+        if (hitCity) {
+          e.preventDefault();
+          unbootedSelectedCityId = hitCity.id;
+        } else {
+          unbootedSelectedCityId = null;
+        }
       } else {
-        selectedLocationId = getActiveWorkspaceLocationId();
-        renderLocationActionBar();
+        if (hitCity) {
+          e.preventDefault();
+          lastGlobeSelectTimestamp = performance.now();
+          selectedLocationId = hitCity.id;
+          renderLocationActionBar();
+        } else {
+          selectedLocationId = getActiveWorkspaceLocationId();
+          renderLocationActionBar();
+        }
       }
     }
   };
@@ -2452,9 +2618,15 @@ if (globeCanvas && globeContainer) {
     const h = rect.height;
     gCtx.clearRect(0, 0, w, h);
 
-    // Pre-Boot State: Slow counterclockwise auto-rotation (West -> East, moving right on front hemisphere)
-    if (bootState === 'unbooted' && activePointerId === null) {
-      targetLon += 0.0022;
+    // Pre-Boot State: Calm counterclockwise auto-rotation at +30° tilt (paused when a city is selected)
+    if (
+      bootState === 'unbooted' &&
+      activePointerId === null &&
+      activeTouches.size === 0 &&
+      unbootedSelectedCityId === null
+    ) {
+      targetLon += 0.00055;
+      targetLat += (PRE_BOOT_TILT - targetLat) * 0.06;
     }
 
     // Physical Flight Progress (TTY 1 and any VPN-unused session following TTY 1)
@@ -2562,17 +2734,20 @@ if (globeCanvas && globeContainer) {
     gCtx.arc(cx, cy, radius, 0, Math.PI * 2);
     gCtx.stroke();
 
-    // 1. Latitude Parallels
+    // 1. Latitude Parallels (Front hemisphere only — no back-side see-through)
     for (let lat = -75; lat <= 75; lat += 15) {
       const isEquator = lat === 0;
       for (let lon = -180; lon < 180; lon += 6) {
         const p1 = projectLatLon(lat, lon, radius, cx, cy);
         const p2 = projectLatLon(lat, lon + 6, radius, cx, cy);
-        const avgZ = (p1.z + p2.z) * 0.5;
+        if (p1.z < 0 && p2.z < 0) continue;
 
-        const baseAlpha = avgZ >= 0 ? 0.06 + avgZ * (isEquator ? 0.24 : 0.12) : 0.03;
+        const avgZ = (p1.z + p2.z) * 0.5;
+        if (avgZ <= 0) continue;
+
+        const baseAlpha = 0.06 + avgZ * (isEquator ? 0.24 : 0.12);
         gCtx.strokeStyle = `rgba(255, 255, 255, ${baseAlpha.toFixed(3)})`;
-        gCtx.lineWidth = isEquator && avgZ >= 0 ? 1.0 : 0.7;
+        gCtx.lineWidth = isEquator ? 1.0 : 0.7;
         gCtx.beginPath();
         gCtx.moveTo(p1.x, p1.y);
         gCtx.lineTo(p2.x, p2.y);
@@ -2580,14 +2755,17 @@ if (globeCanvas && globeContainer) {
       }
     }
 
-    // 2. Longitude Meridians
+    // 2. Longitude Meridians (Front hemisphere only, clipped at ±75° polar rings to prevent 24-line convergence dot at poles)
     for (let lon = -180; lon < 180; lon += 15) {
-      for (let lat = -90; lat < 90; lat += 6) {
+      for (let lat = -75; lat < 75; lat += 5) {
         const p1 = projectLatLon(lat, lon, radius, cx, cy);
-        const p2 = projectLatLon(lat + 6, lon, radius, cx, cy);
-        const avgZ = (p1.z + p2.z) * 0.5;
+        const p2 = projectLatLon(lat + 5, lon, radius, cx, cy);
+        if (p1.z < 0 && p2.z < 0) continue;
 
-        const baseAlpha = avgZ >= 0 ? 0.06 + avgZ * 0.12 : 0.03;
+        const avgZ = (p1.z + p2.z) * 0.5;
+        if (avgZ <= 0) continue;
+
+        const baseAlpha = 0.06 + avgZ * 0.12;
         gCtx.strokeStyle = `rgba(255, 255, 255, ${baseAlpha.toFixed(3)})`;
         gCtx.lineWidth = 0.7;
         gCtx.beginPath();
@@ -2597,7 +2775,7 @@ if (globeCanvas && globeContainer) {
       }
     }
 
-    // 3A. Natural Earth Inland Country Borders (Subtle tactical wireframe layer)
+    // 3A. Natural Earth Inland Country Borders (Front hemisphere only)
     const borderFrontNear = new Path2D();
     const borderFrontEdge = new Path2D();
     for (const poly of WORLD_BORDERS) {
@@ -2607,7 +2785,7 @@ if (globeCanvas && globeContainer) {
         const lat2 = poly[i][0];
         const lon2 = poly[i][1];
         const curPt = projectLatLon(lat2, lon2, radius, cx, cy);
-        if (Math.abs(lon2 - prevLon) < 90) {
+        if (Math.abs(lon2 - prevLon) < 90 && (prevPt.z >= 0 || curPt.z >= 0)) {
           const avgZ = (prevPt.z + curPt.z) * 0.5;
           if (avgZ > 0.35) {
             borderFrontNear.moveTo(prevPt.x, prevPt.y);
@@ -2628,8 +2806,7 @@ if (globeCanvas && globeContainer) {
     gCtx.lineWidth = 0.7;
     gCtx.stroke(borderFrontNear);
 
-    // 3B. Natural Earth 50m Coastlines (Depth-graduated crisp vector wireframe)
-    const coastBack = new Path2D();
+    // 3B. Natural Earth 50m Coastlines (Front hemisphere only — no back-hemisphere bleed-through)
     const coastHorizon = new Path2D();
     const coastMid = new Path2D();
     const coastCenter = new Path2D();
@@ -2641,7 +2818,7 @@ if (globeCanvas && globeContainer) {
         const lat2 = poly[i][0];
         const lon2 = poly[i][1];
         const curPt = projectLatLon(lat2, lon2, radius, cx, cy);
-        if (Math.abs(lon2 - prevLon) < 90) {
+        if (Math.abs(lon2 - prevLon) < 90 && (prevPt.z >= 0 || curPt.z >= 0)) {
           const avgZ = (prevPt.z + curPt.z) * 0.5;
           if (avgZ > 0.55) {
             coastCenter.moveTo(prevPt.x, prevPt.y);
@@ -2649,22 +2826,15 @@ if (globeCanvas && globeContainer) {
           } else if (avgZ > 0.2) {
             coastMid.moveTo(prevPt.x, prevPt.y);
             coastMid.lineTo(curPt.x, curPt.y);
-          } else if (avgZ >= 0) {
+          } else if (avgZ > 0) {
             coastHorizon.moveTo(prevPt.x, prevPt.y);
             coastHorizon.lineTo(curPt.x, curPt.y);
-          } else if (avgZ > -0.35) {
-            coastBack.moveTo(prevPt.x, prevPt.y);
-            coastBack.lineTo(curPt.x, curPt.y);
           }
         }
         prevPt = curPt;
         prevLon = lon2;
       }
     }
-
-    gCtx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
-    gCtx.lineWidth = 0.6;
-    gCtx.stroke(coastBack);
 
     gCtx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
     gCtx.lineWidth = 0.85;
@@ -2785,7 +2955,7 @@ if (globeCanvas && globeContainer) {
       }
     }
 
-    // 5. Location Points (Hidden current/selected markers while unbooted)
+    // 5. Location Points (Current location hidden while unbooted; clicked city selection allowed in both states)
     const isBootedOrBooting = bootState !== 'unbooted';
     const activeWorkspaceCityId = getActiveWorkspaceLocationId();
     projectedCities = [];
@@ -2797,7 +2967,9 @@ if (globeCanvas && globeContainer) {
 
       if (pt.z > 0.08) {
         const isCurrent = isBootedOrBooting && city.id === activeWorkspaceCityId;
-        const isSelected = isBootedOrBooting && city.id === selectedLocationId;
+        const isSelected = isBootedOrBooting
+          ? city.id === selectedLocationId
+          : city.id === unbootedSelectedCityId;
         const alpha = clamp(0.45 + pt.z * 0.55, 0.45, 1);
 
         gCtx.fillStyle = `rgba(255, 255, 255, ${isCurrent || isSelected ? '1.0' : alpha.toFixed(2)})`;
