@@ -370,7 +370,7 @@ const INITIAL_OPENING_LOGS: LogEntry[] = [
 
 const INITIAL_PERMANENT_MEMORY: string[] = [
   '주인공은 정체불명의 사건/추적을 피해 일본 삿포로(Sapporo)로 도피해 막 도착한 언더그라운드 해커다.',
-  '초기 보유 자금은 세븐스타 담배 한 갑($3.99)을 사고 남은 $10.51 USD와 은닉 지갑의 0.0420 XMR(#)뿐이다.',
+  '초기 보유 자금은 세븐스타 담배 한 갑($3.99)을 사고 남은 $10.51 USD와 은닉 지갑의 0.0420 XMR뿐이다.',
   '파트너 AI는 주인공의 로컬 시스템 데몬으로 상주하며, 차분하고 정중하지만 건조하고 현실적인 존댓말을 사용한다.',
 ];
 
@@ -992,6 +992,8 @@ function renderTtyHeader() {
   });
 }
 
+let pendingAiRequest: { tty: TtyId; sudo: boolean } | null = null;
+
 function renderLogLines(preserveBottomOffset = true) {
   if (!logScrollEl) return;
   const entries = ttyLogs[activeTty];
@@ -1007,7 +1009,20 @@ function renderLogLines(preserveBottomOffset = true) {
     )
     .join('');
 
-  logScrollEl.innerHTML = `<div class="flex flex-col justify-start space-y-1">${itemsHtml}</div>`;
+  const pendingHtml =
+    pendingAiRequest && pendingAiRequest.tty === activeTty
+      ? `<div class="flex items-center gap-2 pt-0.5 ${
+          pendingAiRequest.sudo ? 'text-red-500 font-semibold' : 'text-neutral-400'
+        } animate-pulse">
+          <span>&gt;</span>
+          <span class="inline-block w-2 h-3.5 ${
+            pendingAiRequest.sudo ? 'bg-red-500' : 'bg-neutral-300'
+          }"></span>
+          <span class="text-[11px]">partner_ai 응답 대기 중...</span>
+        </div>`
+      : '';
+
+  logScrollEl.innerHTML = `<div class="flex flex-col justify-start space-y-1">${itemsHtml}${pendingHtml}</div>`;
 
   if (preserveBottomOffset) {
     applySavedBottomScroll();
@@ -1456,7 +1471,7 @@ async function runBootSequence() {
   const bootDiagnostics = [
     `[BOOT] initializing kernel ring buffer & nvram keystore...`,
     `[NET] uplink verified :: provider=${config.providerId} (${config.modelId})`,
-    `[WALLET] syncing local ledger :: $${formatUsd(saveState.usdBalance)} / ${formatXmr(saveState.xmrBalance)} #`,
+    `[WALLET] syncing local ledger :: $${formatUsd(saveState.usdBalance)} / ${formatXmr(saveState.xmrBalance)} XMR`,
     `[DAEMON] partner_ai online :: physical_node=${getCityById(physicalLocationId).name.toUpperCase()}`,
   ];
 
@@ -1654,20 +1669,20 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
 ${topologyInfo}
 - 현재 입력 권한 모드: ${
     sudoUsed
-      ? 'SUDO 활성화 (# 루트 권한 / 공격적 익스플로잇 / 다크웹 트랜잭션 / XMR(#) 지갑 서명 및 지출 가능)'
-      : '일반 모드 ($ 일반 대화 / 기본 명령 / 정찰 / USD($) 지출 가능, 단 XMR(#) 지출은 절대 불가)'
+      ? 'SUDO 활성화 (# 루트 권한 / 공격적 익스플로잇 / 다크웹 트랜잭션 / XMR 지갑 서명 및 지출 가능)'
+      : '일반 모드 ($ 일반 대화 / 기본 명령 / 정찰 / USD($) 지출 가능, 단 XMR 지출은 절대 불가)'
   }
 - 현재 보유 자산:
   * USD ($): $${saveState.usdBalance.toFixed(2)}
-  * XMR (#, 모네로): ${saveState.xmrBalance.toFixed(4)} #
+  * XMR (모네로): ${saveState.xmrBalance.toFixed(4)} XMR
 
 [3. 게임 시스템 절대 규칙 — 반드시 준수할 것]
-1) 화폐 및 지출 권한 규칙 ($ vs #):
+1) 화폐 및 지출 권한 규칙 (USD vs XMR):
    - USD($) 지출("usdDelta" < 0)은 일반 모드($)와 SUDO 모드(#) 모두에서 가능합니다 (편의점, 담배, 숙박, 식사, 항공권, 일반 서버/도메인 결제 등).
-   - XMR(#) 지출("xmrDelta" < 0)은 **오직 SUDO 모드(#)가 켜져 있을 때만** 가능합니다! (다크웹 마켓, 익스플로잇 구매, 봇넷 임대, 자금 세탁 등).
-   - 만약 현재 일반 모드($)인데 유저가 XMR(#) 지출이 필요한 행동을 시도하면, 절대 XMR을 차감하지 말고("xmrDelta": 0) 파트너 AI가 "모네로(#) 지갑 서명 및 지출은 SUDO 권한이 필요합니다. SUDO 모드를 활성화한 뒤 다시 명령해주십시오."라고 안내하십시오.
+   - XMR 지출("xmrDelta" < 0)은 **오직 SUDO 모드(#)가 켜져 있을 때만** 가능합니다! (다크웹 마켓, 익스플로잇 구매, 봇넷 임대, 자금 세탁 등).
+   - 만약 현재 일반 모드($)인데 유저가 XMR 지출이 필요한 행동을 시도하면, 절대 XMR을 차감하지 말고("xmrDelta": 0) 파트너 AI가 "모네로(XMR) 지갑 서명 및 지출은 SUDO 권한이 필요합니다. SUDO 모드를 활성화한 뒤 다시 명령해주십시오."라고 안내하십시오.
    - 해킹 성공, 의뢰 보상, 크립토 탈취 등으로 돈을 벌 때는 "usdDelta" > 0 또는 "xmrDelta" > 0을 부여할 수 있습니다.
-   - 현재 잔고($${saveState.usdBalance.toFixed(2)}, ${saveState.xmrBalance.toFixed(4)} #)보다 많은 금액은 지출할 수 없습니다.
+   - 현재 잔고($${saveState.usdBalance.toFixed(2)}, ${saveState.xmrBalance.toFixed(4)} XMR)보다 많은 금액은 지출할 수 없습니다.
 2) 위치(LOC) 및 VPN 조작 규칙:
    - 당신(AI)은 유저 대신 VPN을 연결하거나 비행 이동을 실행해줄 수 없습니다. **VPN 연결(tty2~5에서 상단 지구본 노드 선택 후 Route)과 물리적 비행 이동(tty1에서 지구본 노드 선택 후 Flight)은 반드시 유저가 직접 지구본 UI를 조작해 세팅해야 합니다.**
    - 유저가 VPN이 없는 상태(tty1이거나 VPN 미설정된 tty2~5)에서 위험한 해킹이나 침투를 시도하면, 현재 물리적 위치(${getCityById(physicalLocationId).name}) IP가 그대로 노출된다고 경고하거나 tty2~5에서 지구본을 통해 VPN 노드를 먼저 연결하라고 조언하십시오.
@@ -1705,12 +1720,23 @@ ${recentHistory}
 ${rawInput}`;
 
   try {
+    pendingAiRequest = { tty: targetTty, sudo: sudoUsed };
+    if (activeTty === targetTty) {
+      ttyScrollBottomOffsets[targetTty] = 0;
+      renderLogLines(true);
+    }
+
     const rawResponse = await callProviderLlm(systemPrompt, userPrompt);
+    pendingAiRequest = null;
+    if (activeTty === targetTty) {
+      renderLogLines(true);
+    }
+
     const parsed = extractJsonObject(rawResponse);
 
     if (!parsed) {
       const cleanLine = rawResponse.trim().replace(/^>\s*/, '');
-      appendLogToTty(targetTty, `> ${cleanLine || '...'}`, false, true);
+      appendLogToTty(targetTty, `> ${cleanLine || '...'}`, sudoUsed, true);
       syncAndPersistSaveState();
       return;
     }
@@ -1743,7 +1769,7 @@ ${rawInput}`;
       await sleep(320);
     }
 
-    // 3. Print Partner AI reply all at once
+    // 3. Print Partner AI reply all at once (red if SUDO mode was used)
     if (parsed.reply && String(parsed.reply).trim()) {
       const replyParagraphs = String(parsed.reply)
         .trim()
@@ -1753,7 +1779,7 @@ ${rawInput}`;
 
       for (const para of replyParagraphs) {
         const cleanPara = para.replace(/^>\s*/, '');
-        appendLogToTty(targetTty, `> ${cleanPara}`, false, true);
+        appendLogToTty(targetTty, `> ${cleanPara}`, sudoUsed, true);
       }
     }
 
@@ -1766,7 +1792,7 @@ ${rawInput}`;
       dXmr = 0;
       appendLogToTty(
         targetTty,
-        `[SYS] XMR(#) 지출이 차단되었습니다 (SUDO 모드에서만 지출 가능).`,
+        `[SYS] XMR 지출이 차단되었습니다 (SUDO 모드에서만 지출 가능).`,
         true,
         true
       );
@@ -1799,6 +1825,10 @@ ${rawInput}`;
 
     syncAndPersistSaveState();
   } catch (err) {
+    pendingAiRequest = null;
+    if (activeTty === targetTty) {
+      renderLogLines(true);
+    }
     const msg = err instanceof Error ? err.message : 'Unknown error';
     appendLogToTty(targetTty, `[DAEMON ERR] ${msg}`, true, true);
   }
@@ -1826,12 +1856,24 @@ inputFormEl?.addEventListener('submit', async (e) => {
   syncAndPersistSaveState();
 
   isSubmittingCommand = true;
-  if (submitActionBtnEl) submitActionBtnEl.disabled = true;
+  if (submitActionBtnEl) {
+    submitActionBtnEl.disabled = true;
+    submitActionBtnEl.textContent = 'WAIT';
+  }
+  if (cmdInputEl) {
+    cmdInputEl.placeholder = 'partner_ai 응답 대기 중...';
+  }
   try {
     await handleRoleplayInput(raw, sudoSnap, currentTty);
   } finally {
     isSubmittingCommand = false;
-    if (submitActionBtnEl) submitActionBtnEl.disabled = false;
+    if (submitActionBtnEl) {
+      submitActionBtnEl.disabled = false;
+    }
+    if (cmdInputEl) {
+      cmdInputEl.placeholder = '';
+    }
+    applySudoVisualState();
   }
 });
 
@@ -2358,9 +2400,10 @@ if (globeCanvas && globeContainer) {
 
   const resizeGlobe = () => {
     const rect = globeContainer.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
     const dpr = window.devicePixelRatio || 1;
-    globeCanvas.width = rect.width * dpr;
-    globeCanvas.height = rect.height * dpr;
+    globeCanvas.width = Math.round(rect.width * dpr);
+    globeCanvas.height = Math.round(rect.height * dpr);
     if (gCtx) {
       gCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
@@ -2368,6 +2411,16 @@ if (globeCanvas && globeContainer) {
 
   resizeGlobe();
   window.addEventListener('resize', resizeGlobe);
+  window.addEventListener('pageshow', () => {
+    updateViewportGeometry();
+    resizeGlobe();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      updateViewportGeometry();
+      resizeGlobe();
+    }
+  });
 
   const globeTileEl = document.getElementById('globe-tile');
   const handleGlobeWheel = (e: WheelEvent) => {
@@ -2616,6 +2669,20 @@ if (globeCanvas && globeContainer) {
     const rect = globeContainer!.getBoundingClientRect();
     const w = rect.width;
     const h = rect.height;
+    if (w <= 0 || h <= 0) {
+      requestAnimationFrame(renderGlobe);
+      return;
+    }
+
+    // Ensure canvas backing store and DPR transform stay synchronized even after mobile GPU context restore
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = Math.round(w * dpr);
+    const targetH = Math.round(h * dpr);
+    if (globeCanvas.width !== targetW || globeCanvas.height !== targetH) {
+      globeCanvas.width = targetW;
+      globeCanvas.height = targetH;
+    }
+    gCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     gCtx.clearRect(0, 0, w, h);
 
     // Pre-Boot State: Calm counterclockwise auto-rotation at +30° tilt (paused when a city is selected)
