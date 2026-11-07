@@ -790,24 +790,26 @@ if (root) {
 
             <form
               id="input-form"
-              class="w-full flex-1 bg-[#090909] flex items-center px-3 gap-2 transition-colors"
+              class="w-full flex-1 bg-[#090909] flex items-stretch px-3 gap-2 transition-colors cursor-text"
             >
-              <span id="prompt-symbol" class="text-xs font-bold text-neutral-100 whitespace-nowrap shrink-0">
+              <span id="prompt-symbol" class="text-xs font-bold text-neutral-100 whitespace-nowrap shrink-0 flex items-center select-none">
                 $
               </span>
               <input
                 id="cmd-input"
                 type="text"
+                inputmode="text"
+                enterkeyhint="send"
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false"
-                class="flex-1 min-w-0 bg-transparent text-xs text-neutral-100 focus:outline-none"
+                class="flex-1 min-w-0 h-full py-1.5 bg-transparent text-xs text-neutral-100 select-text touch-manipulation focus:outline-none"
               />
               <button
                 id="submit-action-btn"
                 type="submit"
-                class="px-2.5 py-1 bg-neutral-100 text-black text-[11px] font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                class="self-center px-2.5 py-1 bg-neutral-100 text-black text-[11px] font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0 select-none"
               >
                 SEND
               </button>
@@ -856,11 +858,12 @@ function applySudoVisualState() {
     sudoBtnEl.className =
       'h-full px-2.5 text-[11px] font-bold bg-[#090909] border-r border-red-500 text-red-500 transition-colors cursor-pointer whitespace-nowrap shrink-0';
     promptSymbolEl.textContent = '#';
-    promptSymbolEl.className = 'text-xs font-bold text-red-500 whitespace-nowrap shrink-0';
-    cmdInputEl.className = 'flex-1 min-w-0 bg-transparent text-xs text-red-500 caret-red-500 focus:outline-none';
+    promptSymbolEl.className = 'text-xs font-bold text-red-500 whitespace-nowrap shrink-0 flex items-center select-none';
+    cmdInputEl.className =
+      'flex-1 min-w-0 h-full py-1.5 bg-transparent text-xs text-red-500 caret-red-500 select-text touch-manipulation focus:outline-none';
     submitActionBtnEl.textContent = 'EXEC';
     submitActionBtnEl.className =
-      'px-2.5 py-1 bg-red-500 text-black text-[11px] font-bold hover:bg-red-400 transition-colors cursor-pointer whitespace-nowrap shrink-0';
+      'self-center px-2.5 py-1 bg-red-500 text-black text-[11px] font-bold hover:bg-red-400 transition-colors cursor-pointer whitespace-nowrap shrink-0 select-none';
     if (xmrBalanceValEl) {
       xmrBalanceValEl.className = 'text-left font-semibold text-red-500 truncate transition-colors';
     }
@@ -875,11 +878,12 @@ function applySudoVisualState() {
     sudoBtnEl.className =
       'h-full px-2.5 text-[11px] font-bold bg-[#090909] border-r border-neutral-300 text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0';
     promptSymbolEl.textContent = '$';
-    promptSymbolEl.className = 'text-xs font-bold text-neutral-100 whitespace-nowrap shrink-0';
-    cmdInputEl.className = 'flex-1 min-w-0 bg-transparent text-xs text-neutral-100 caret-neutral-100 focus:outline-none';
+    promptSymbolEl.className = 'text-xs font-bold text-neutral-100 whitespace-nowrap shrink-0 flex items-center select-none';
+    cmdInputEl.className =
+      'flex-1 min-w-0 h-full py-1.5 bg-transparent text-xs text-neutral-100 caret-neutral-100 select-text touch-manipulation focus:outline-none';
     submitActionBtnEl.textContent = 'SEND';
     submitActionBtnEl.className =
-      'px-2.5 py-1 bg-neutral-100 text-black text-[11px] font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0';
+      'self-center px-2.5 py-1 bg-neutral-100 text-black text-[11px] font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0 select-none';
     if (xmrBalanceValEl) {
       xmrBalanceValEl.className = 'text-left font-semibold text-neutral-100 truncate transition-colors';
     }
@@ -897,6 +901,15 @@ sudoBtnEl?.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   isSudoMode = !isSudoMode;
   applySudoVisualState();
+});
+
+// Ensure tapping anywhere in the input bar row (prompt symbol or padding) focuses the text input on mobile
+inputFormEl?.addEventListener('click', (e) => {
+  const target = e.target as HTMLElement | null;
+  if (target && target.closest('#submit-action-btn')) return;
+  if (cmdInputEl && document.activeElement !== cmdInputEl) {
+    cmdInputEl.focus();
+  }
 });
 
 applySudoVisualState();
@@ -1163,6 +1176,7 @@ function normalizeAngleDiff(target: number, current: number): number {
 }
 
 let focusCityOnGlobe: ((city: CityNode) => void) | null = null;
+let requestGlobeWake: (() => void) | null = null;
 
 function switchTtyWorkspace(targetTty: TtyId) {
   activeTty = targetTty;
@@ -1172,6 +1186,7 @@ function switchTtyWorkspace(targetTty: TtyId) {
     const city = getCityById(activeCityId);
     if (focusCityOnGlobe) focusCityOnGlobe(city);
   }
+  requestGlobeWake?.();
   renderTtyHeader();
   renderLogLines(true);
   renderLocationActionBar();
@@ -1405,6 +1420,7 @@ function unsetVpnForActiveTty() {
   selectedLocationId = physicalLocationId;
   const physicalCity = getCityById(physicalLocationId);
   if (focusCityOnGlobe) focusCityOnGlobe(physicalCity);
+  requestGlobeWake?.();
   renderLocationActionBar();
   if (bootState === 'booted') {
     syncAndPersistSaveState();
@@ -1426,6 +1442,7 @@ function startFlightTo(dest: CityNode) {
     progress: 0,
     estimatedPingMs: 0,
   };
+  requestGlobeWake?.();
   renderLocationActionBar();
 }
 
@@ -1446,6 +1463,7 @@ function startVpnBridgeTo(dest: CityNode) {
     progress: 0,
     estimatedPingMs,
   };
+  requestGlobeWake?.();
   renderLocationActionBar();
 }
 
@@ -1538,6 +1556,7 @@ async function runBootSequence() {
   bootState = 'booted';
   renderBootOverlayState();
   renderLocationActionBar();
+  requestGlobeWake?.();
 }
 
 document.getElementById('boot-up-btn')?.addEventListener('click', (e) => {
@@ -2133,7 +2152,7 @@ function renderModalOnly() {
               autocorrect="off"
               autocapitalize="off"
               spellcheck="false"
-              class="flex-1 min-w-0 bg-black border border-neutral-700 focus:border-neutral-200 px-2.5 py-1.5 text-neutral-100 focus:outline-none"
+              class="flex-1 min-w-0 bg-black border border-neutral-700 focus:border-neutral-200 px-2.5 py-1.5 text-neutral-100 select-text touch-manipulation focus:outline-none"
             />
             <button
               id="clear-key-btn"
@@ -2424,6 +2443,7 @@ function renderModalOnly() {
     renderLogLines(true);
     renderBootOverlayState();
     renderLocationActionBar();
+    requestGlobeWake?.();
 
     saveStatusMessage = '롤플레잉 세이브가 초기화되었습니다. (API 설정 유지)';
     renderModalOnly();
@@ -2498,29 +2518,111 @@ if (globeCanvas && globeContainer) {
 
   let projectedCities: { city: CityNode; x: number; y: number; z: number }[] = [];
 
+  // Precompute 3D unit-sphere coordinates once at startup to eliminate ~15,000 trig calls per frame
+  interface SphereVertex {
+    vx: number;
+    vy: number;
+    vz: number;
+    lonDeg: number;
+  }
+
+  const toSphereVertex = (latDeg: number, lonDeg: number): SphereVertex => {
+    const lat = latDeg * DEG2RAD;
+    const lon = lonDeg * DEG2RAD;
+    const cosLat = Math.cos(lat);
+    return {
+      vx: cosLat * Math.sin(lon),
+      vy: Math.sin(lat),
+      vz: cosLat * Math.cos(lon),
+      lonDeg,
+    };
+  };
+
+  const precomputedBorders: SphereVertex[][] = WORLD_BORDERS.map((poly) =>
+    poly.map((pt) => toSphereVertex(pt[0], pt[1]))
+  );
+
+  const precomputedCoastlines: SphereVertex[][] = WORLD_COASTLINES.map((poly) =>
+    poly.map((pt) => toSphereVertex(pt[0], pt[1]))
+  );
+
+  const precomputedParallels: { isEquator: boolean; pts: SphereVertex[] }[] = [];
+  for (let lat = -75; lat <= 75; lat += 15) {
+    const pts: SphereVertex[] = [];
+    for (let lon = -180; lon <= 180; lon += 6) {
+      pts.push(toSphereVertex(lat, lon));
+    }
+    precomputedParallels.push({ isEquator: lat === 0, pts });
+  }
+
+  const precomputedMeridians: SphereVertex[][] = [];
+  for (let lon = -180; lon < 180; lon += 15) {
+    const pts: SphereVertex[] = [];
+    for (let lat = -75; lat <= 75; lat += 5) {
+      pts.push(toSphereVertex(lat, lon));
+    }
+    precomputedMeridians.push(pts);
+  }
+
+  const precomputedCities: { city: CityNode; v: SphereVertex }[] = CITIES.map((city) => ({
+    city,
+    v: toSphereVertex(city.lat, city.lon),
+  }));
+
+  let isGlobeLoopRunning = false;
+  let cachedCssWidth = 0;
+  let cachedCssHeight = 0;
+  let lastZoomTopText = '';
+  let lastZoomReadoutText = '';
+  let lastCoordLabelText = '';
+
+  const wakeGlobeLoop = () => {
+    if (!isGlobeLoopRunning && document.visibilityState !== 'hidden') {
+      isGlobeLoopRunning = true;
+      requestAnimationFrame(renderGlobe);
+    }
+  };
+
+  requestGlobeWake = wakeGlobeLoop;
+
   focusCityOnGlobe = (city: CityNode) => {
     const desiredLon = -city.lon * DEG2RAD;
     targetLon = normalizeAngleDiff(desiredLon, rotLon);
     targetLat = clamp(city.lat * DEG2RAD, -MAX_LAT_TILT, MAX_LAT_TILT);
+    wakeGlobeLoop();
   };
 
   const updateZoomUI = () => {
     if (!zoomThumbEl || !zoomReadoutEl) return;
     const ratio = (zoomLevel - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM);
-    const topPct = (1 - clamp(ratio, 0, 1)) * 100;
-    zoomThumbEl.style.top = `${topPct.toFixed(1)}%`;
-    zoomReadoutEl.textContent = `${zoomLevel.toFixed(1)}x`;
+    const topPct = `${((1 - clamp(ratio, 0, 1)) * 100).toFixed(1)}%`;
+    const readout = `${zoomLevel.toFixed(1)}x`;
+    if (topPct !== lastZoomTopText) {
+      lastZoomTopText = topPct;
+      zoomThumbEl.style.top = topPct;
+    }
+    if (readout !== lastZoomReadoutText) {
+      lastZoomReadoutText = readout;
+      zoomReadoutEl.textContent = readout;
+    }
   };
 
   const resizeGlobe = () => {
     const rect = globeContainer.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
+    cachedCssWidth = rect.width;
+    cachedCssHeight = rect.height;
     const dpr = window.devicePixelRatio || 1;
-    globeCanvas.width = Math.round(rect.width * dpr);
-    globeCanvas.height = Math.round(rect.height * dpr);
+    const targetW = Math.round(rect.width * dpr);
+    const targetH = Math.round(rect.height * dpr);
+    if (globeCanvas.width !== targetW || globeCanvas.height !== targetH) {
+      globeCanvas.width = targetW;
+      globeCanvas.height = targetH;
+    }
     if (gCtx) {
       gCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
+    wakeGlobeLoop();
   };
 
   resizeGlobe();
@@ -2543,6 +2645,7 @@ if (globeCanvas && globeContainer) {
       e.deltaMode === 1 ? e.deltaY * 32 : e.deltaMode === 2 ? e.deltaY * 300 : e.deltaY;
     const delta = -rawDeltaY * 0.0022;
     targetZoom = clamp(targetZoom + delta, MIN_ZOOM, MAX_ZOOM);
+    wakeGlobeLoop();
   };
 
   if (globeTileEl) {
@@ -2559,6 +2662,7 @@ if (globeCanvas && globeContainer) {
       if (rect.height <= 0) return;
       const relY = clamp((clientY - rect.top) / rect.height, 0, 1);
       targetZoom = MIN_ZOOM + (1 - relY) * (MAX_ZOOM - MIN_ZOOM);
+      wakeGlobeLoop();
     };
 
     zoomAxisEl.addEventListener('pointerdown', (e: PointerEvent) => {
@@ -2599,6 +2703,7 @@ if (globeCanvas && globeContainer) {
       initialPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
       initialPinchZoom = targetZoom;
       wasDragged = true;
+      wakeGlobeLoop();
       return;
     }
 
@@ -2609,6 +2714,7 @@ if (globeCanvas && globeContainer) {
     dragStartLon = targetLon;
     dragStartLat = targetLat;
     wasDragged = false;
+    wakeGlobeLoop();
   });
 
   globeContainer.addEventListener('pointermove', (e: PointerEvent) => {
@@ -2622,6 +2728,7 @@ if (globeCanvas && globeContainer) {
       const scale = curDist / initialPinchDist;
       targetZoom = clamp(initialPinchZoom * scale, MIN_ZOOM, MAX_ZOOM);
       wasDragged = true;
+      wakeGlobeLoop();
       return;
     }
 
@@ -2638,6 +2745,7 @@ if (globeCanvas && globeContainer) {
       const sensitivity = 0.0055 / Math.sqrt(zoomLevel);
       targetLon = dragStartLon + dx * sensitivity;
       targetLat = clamp(dragStartLat + dy * sensitivity, -MAX_LAT_TILT, MAX_LAT_TILT);
+      wakeGlobeLoop();
     }
   });
 
@@ -2646,11 +2754,11 @@ if (globeCanvas && globeContainer) {
     if (activeTouches.size < 2) {
       initialPinchDist = null;
     }
-
-    if (activePointerId !== e.pointerId) return;
     if (globeContainer.hasPointerCapture(e.pointerId)) {
       globeContainer.releasePointerCapture(e.pointerId);
     }
+
+    if (activePointerId !== e.pointerId) return;
     activePointerId = null;
 
     const isLockedByTransit = getActiveTransitForCurrentTty() !== null;
@@ -2690,6 +2798,7 @@ if (globeCanvas && globeContainer) {
         }
       }
     }
+    wakeGlobeLoop();
   };
 
   globeContainer.addEventListener('pointerup', endPointerDrag);
@@ -2704,7 +2813,11 @@ if (globeCanvas && globeContainer) {
 
     const latSign = degLat >= 0 ? '+' : '';
     const lonSign = degLon >= 0 ? '+' : '';
-    globeCoordsEl.textContent = `LAT ${latSign}${degLat.toFixed(1)}° · LON ${lonSign}${degLon.toFixed(1)}°`;
+    const text = `LAT ${latSign}${degLat.toFixed(1)}° · LON ${lonSign}${degLon.toFixed(1)}°`;
+    if (text !== lastCoordLabelText) {
+      lastCoordLabelText = text;
+      globeCoordsEl.textContent = text;
+    }
   }
 
   function projectLatLon(latDeg: number, lonDeg: number, radius: number, cx: number, cy: number) {
@@ -2779,16 +2892,23 @@ if (globeCanvas && globeContainer) {
   }
 
   function renderGlobe(now: number) {
-    if (!gCtx || !globeCanvas) return;
-    const rect = globeContainer!.getBoundingClientRect();
-    const w = rect.width;
-    const h = rect.height;
-    if (w <= 0 || h <= 0) {
-      requestAnimationFrame(renderGlobe);
+    if (!gCtx || !globeCanvas || document.visibilityState === 'hidden') {
+      isGlobeLoopRunning = false;
       return;
     }
 
-    // Ensure canvas backing store and DPR transform stay synchronized even after mobile GPU context restore
+    if (cachedCssWidth <= 0 || cachedCssHeight <= 0) {
+      const rect = globeContainer!.getBoundingClientRect();
+      cachedCssWidth = rect.width;
+      cachedCssHeight = rect.height;
+    }
+    const w = cachedCssWidth;
+    const h = cachedCssHeight;
+    if (w <= 0 || h <= 0) {
+      isGlobeLoopRunning = false;
+      return;
+    }
+
     const dpr = window.devicePixelRatio || 1;
     const targetW = Math.round(w * dpr);
     const targetH = Math.round(h * dpr);
@@ -2799,13 +2919,14 @@ if (globeCanvas && globeContainer) {
     gCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     gCtx.clearRect(0, 0, w, h);
 
-    // Pre-Boot State: Calm counterclockwise auto-rotation at +30° tilt (paused when a city is selected)
-    if (
+    const isPreBootRotating =
       bootState === 'unbooted' &&
       activePointerId === null &&
       activeTouches.size === 0 &&
-      unbootedSelectedCityId === null
-    ) {
+      unbootedSelectedCityId === null;
+
+    // Pre-Boot State: Calm counterclockwise auto-rotation at +30° tilt (paused when a city is selected)
+    if (isPreBootRotating) {
       targetLon += 0.00055;
       targetLat += (PRE_BOOT_TILT - targetLat) * 0.06;
     }
@@ -2832,7 +2953,6 @@ if (globeCanvas && globeContainer) {
       if (t >= 1) {
         const arrivedCity = activeFlight.toCity;
         physicalLocationId = arrivedCity.id;
-        // If any VPN session was pinned to the arrived physical location, treat it as LOC (unused VPN)
         for (const id of [2, 3, 4, 5] as TtyId[]) {
           if (vpnLocationIds[id] === arrivedCity.id) {
             vpnLocationIds[id] = null;
@@ -2852,11 +2972,12 @@ if (globeCanvas && globeContainer) {
     const livePhysicalOrigin = getLivePhysicalOriginCity();
 
     // VPN Bridge / Ping Progress (TTY 2..5)
+    let hasActiveVpnBridge = false;
     for (const ttyId of [2, 3, 4, 5] as TtyId[]) {
       const vpnTransit = activeVpnBridges[ttyId];
       if (!vpnTransit) continue;
+      hasActiveVpnBridge = true;
 
-      // Always keep VPN line origin anchored to live physical location
       vpnTransit.fromCity = livePhysicalOrigin;
 
       const prevProgress = vpnTransit.progress;
@@ -2873,7 +2994,6 @@ if (globeCanvas && globeContainer) {
         targetLon = normalizeAngleDiff(-signalPos.lon * DEG2RAD, rotLon);
         targetLat = clamp(signalPos.lat * DEG2RAD, -MAX_LAT_TILT, MAX_LAT_TILT);
 
-        // Update status label when crossing from Testing Ping -> Bridging
         if (prevProgress < 0.55 && vpnTransit.progress >= 0.55) {
           const statusEl = document.getElementById('vpn-transit-status-label');
           if (statusEl) statusEl.textContent = 'Bridging';
@@ -2897,11 +3017,22 @@ if (globeCanvas && globeContainer) {
       }
     }
 
-    rotLon += (targetLon - rotLon) * 0.22;
-    rotLat += (targetLat - rotLat) * 0.22;
-    rotLat = clamp(rotLat, -MAX_LAT_TILT, MAX_LAT_TILT);
+    const dLon = targetLon - rotLon;
+    const dLat = targetLat - rotLat;
+    const dZoom = targetZoom - zoomLevel;
+    const isSettling =
+      Math.abs(dLon) > 0.00015 || Math.abs(dLat) > 0.00015 || Math.abs(dZoom) > 0.0004;
 
-    zoomLevel += (targetZoom - zoomLevel) * 0.25;
+    if (isSettling) {
+      rotLon += dLon * 0.22;
+      rotLat = clamp(rotLat + dLat * 0.22, -MAX_LAT_TILT, MAX_LAT_TILT);
+      zoomLevel += dZoom * 0.25;
+    } else {
+      rotLon = targetLon;
+      rotLat = clamp(targetLat, -MAX_LAT_TILT, MAX_LAT_TILT);
+      zoomLevel = targetZoom;
+    }
+
     updateZoomUI();
     updateCoordLabel();
 
@@ -2909,75 +3040,130 @@ if (globeCanvas && globeContainer) {
     const cy = h / 2;
     const radius = Math.min(w, h) * 0.42 * zoomLevel;
 
+    // Compute frame rotation trig ONCE per frame
+    const cLon = Math.cos(rotLon);
+    const sLon = Math.sin(rotLon);
+    const cLat = Math.cos(rotLat);
+    const sLat = Math.sin(rotLat);
+
     gCtx.strokeStyle = 'rgba(255, 255, 255, 0.36)';
     gCtx.lineWidth = 1.1;
     gCtx.beginPath();
     gCtx.arc(cx, cy, radius, 0, Math.PI * 2);
     gCtx.stroke();
 
-    // 1. Latitude Parallels (Front hemisphere only — no back-side see-through)
-    for (let lat = -75; lat <= 75; lat += 15) {
-      const isEquator = lat === 0;
-      for (let lon = -180; lon < 180; lon += 6) {
-        const p1 = projectLatLon(lat, lon, radius, cx, cy);
-        const p2 = projectLatLon(lat, lon + 6, radius, cx, cy);
-        if (p1.z < 0 && p2.z < 0) continue;
+    // 1 & 2. Batched Graticule Grid (Parallels + Meridians in 3 depth buckets instead of 1,380 draw calls)
+    const gridEdge = new Path2D();
+    const gridCenter = new Path2D();
+    const equatorPath = new Path2D();
 
-        const avgZ = (p1.z + p2.z) * 0.5;
-        if (avgZ <= 0) continue;
+    for (const parallel of precomputedParallels) {
+      const pts = parallel.pts;
+      const isEq = parallel.isEquator;
+      const v0 = pts[0];
+      let z0 = v0.vz * cLon - v0.vx * sLon;
+      let prevX = cx + (v0.vx * cLon + v0.vz * sLon) * radius;
+      let prevY = cy - (v0.vy * cLat - z0 * sLat) * radius;
+      let prevZ = v0.vy * sLat + z0 * cLat;
 
-        const baseAlpha = 0.06 + avgZ * (isEquator ? 0.24 : 0.12);
-        gCtx.strokeStyle = `rgba(255, 255, 255, ${baseAlpha.toFixed(3)})`;
-        gCtx.lineWidth = isEquator ? 1.0 : 0.7;
-        gCtx.beginPath();
-        gCtx.moveTo(p1.x, p1.y);
-        gCtx.lineTo(p2.x, p2.y);
-        gCtx.stroke();
+      for (let i = 1; i < pts.length; i++) {
+        const v = pts[i];
+        z0 = v.vz * cLon - v.vx * sLon;
+        const curX = cx + (v.vx * cLon + v.vz * sLon) * radius;
+        const curY = cy - (v.vy * cLat - z0 * sLat) * radius;
+        const curZ = v.vy * sLat + z0 * cLat;
+
+        const avgZ = (prevZ + curZ) * 0.5;
+        if (avgZ > 0) {
+          if (isEq) {
+            equatorPath.moveTo(prevX, prevY);
+            equatorPath.lineTo(curX, curY);
+          } else if (avgZ > 0.4) {
+            gridCenter.moveTo(prevX, prevY);
+            gridCenter.lineTo(curX, curY);
+          } else {
+            gridEdge.moveTo(prevX, prevY);
+            gridEdge.lineTo(curX, curY);
+          }
+        }
+        prevX = curX;
+        prevY = curY;
+        prevZ = curZ;
       }
     }
 
-    // 2. Longitude Meridians (Front hemisphere only, clipped at ±75° polar rings to prevent 24-line convergence dot at poles)
-    for (let lon = -180; lon < 180; lon += 15) {
-      for (let lat = -75; lat < 75; lat += 5) {
-        const p1 = projectLatLon(lat, lon, radius, cx, cy);
-        const p2 = projectLatLon(lat + 5, lon, radius, cx, cy);
-        if (p1.z < 0 && p2.z < 0) continue;
+    for (const pts of precomputedMeridians) {
+      const v0 = pts[0];
+      let z0 = v0.vz * cLon - v0.vx * sLon;
+      let prevX = cx + (v0.vx * cLon + v0.vz * sLon) * radius;
+      let prevY = cy - (v0.vy * cLat - z0 * sLat) * radius;
+      let prevZ = v0.vy * sLat + z0 * cLat;
 
-        const avgZ = (p1.z + p2.z) * 0.5;
-        if (avgZ <= 0) continue;
+      for (let i = 1; i < pts.length; i++) {
+        const v = pts[i];
+        z0 = v.vz * cLon - v.vx * sLon;
+        const curX = cx + (v.vx * cLon + v.vz * sLon) * radius;
+        const curY = cy - (v.vy * cLat - z0 * sLat) * radius;
+        const curZ = v.vy * sLat + z0 * cLat;
 
-        const baseAlpha = 0.06 + avgZ * 0.12;
-        gCtx.strokeStyle = `rgba(255, 255, 255, ${baseAlpha.toFixed(3)})`;
-        gCtx.lineWidth = 0.7;
-        gCtx.beginPath();
-        gCtx.moveTo(p1.x, p1.y);
-        gCtx.lineTo(p2.x, p2.y);
-        gCtx.stroke();
+        const avgZ = (prevZ + curZ) * 0.5;
+        if (avgZ > 0.4) {
+          gridCenter.moveTo(prevX, prevY);
+          gridCenter.lineTo(curX, curY);
+        } else if (avgZ > 0) {
+          gridEdge.moveTo(prevX, prevY);
+          gridEdge.lineTo(curX, curY);
+        }
+        prevX = curX;
+        prevY = curY;
+        prevZ = curZ;
       }
     }
+
+    gCtx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
+    gCtx.lineWidth = 0.7;
+    gCtx.stroke(gridEdge);
+
+    gCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    gCtx.lineWidth = 0.7;
+    gCtx.stroke(gridCenter);
+
+    gCtx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+    gCtx.lineWidth = 1.0;
+    gCtx.stroke(equatorPath);
 
     // 3A. Natural Earth Inland Country Borders (Front hemisphere only)
     const borderFrontNear = new Path2D();
     const borderFrontEdge = new Path2D();
-    for (const poly of WORLD_BORDERS) {
-      let prevPt = projectLatLon(poly[0][0], poly[0][1], radius, cx, cy);
-      let prevLon = poly[0][1];
+    for (const poly of precomputedBorders) {
+      const v0 = poly[0];
+      let z0 = v0.vz * cLon - v0.vx * sLon;
+      let prevX = cx + (v0.vx * cLon + v0.vz * sLon) * radius;
+      let prevY = cy - (v0.vy * cLat - z0 * sLat) * radius;
+      let prevZ = v0.vy * sLat + z0 * cLat;
+      let prevLon = v0.lonDeg;
+
       for (let i = 1; i < poly.length; i++) {
-        const lat2 = poly[i][0];
-        const lon2 = poly[i][1];
-        const curPt = projectLatLon(lat2, lon2, radius, cx, cy);
-        if (Math.abs(lon2 - prevLon) < 90 && (prevPt.z >= 0 || curPt.z >= 0)) {
-          const avgZ = (prevPt.z + curPt.z) * 0.5;
+        const v = poly[i];
+        z0 = v.vz * cLon - v.vx * sLon;
+        const curX = cx + (v.vx * cLon + v.vz * sLon) * radius;
+        const curY = cy - (v.vy * cLat - z0 * sLat) * radius;
+        const curZ = v.vy * sLat + z0 * cLat;
+
+        if (Math.abs(v.lonDeg - prevLon) < 90 && (prevZ >= 0 || curZ >= 0)) {
+          const avgZ = (prevZ + curZ) * 0.5;
           if (avgZ > 0.35) {
-            borderFrontNear.moveTo(prevPt.x, prevPt.y);
-            borderFrontNear.lineTo(curPt.x, curPt.y);
+            borderFrontNear.moveTo(prevX, prevY);
+            borderFrontNear.lineTo(curX, curY);
           } else if (avgZ > 0.02) {
-            borderFrontEdge.moveTo(prevPt.x, prevPt.y);
-            borderFrontEdge.lineTo(curPt.x, curPt.y);
+            borderFrontEdge.moveTo(prevX, prevY);
+            borderFrontEdge.lineTo(curX, curY);
           }
         }
-        prevPt = curPt;
-        prevLon = lon2;
+        prevX = curX;
+        prevY = curY;
+        prevZ = curZ;
+        prevLon = v.lonDeg;
       }
     }
     gCtx.strokeStyle = 'rgba(255, 255, 255, 0.11)';
@@ -2987,33 +3173,43 @@ if (globeCanvas && globeContainer) {
     gCtx.lineWidth = 0.7;
     gCtx.stroke(borderFrontNear);
 
-    // 3B. Natural Earth 50m Coastlines (Front hemisphere only — no back-hemisphere bleed-through)
+    // 3B. Natural Earth 50m Coastlines (Front hemisphere only)
     const coastHorizon = new Path2D();
     const coastMid = new Path2D();
     const coastCenter = new Path2D();
 
-    for (const poly of WORLD_COASTLINES) {
-      let prevPt = projectLatLon(poly[0][0], poly[0][1], radius, cx, cy);
-      let prevLon = poly[0][1];
+    for (const poly of precomputedCoastlines) {
+      const v0 = poly[0];
+      let z0 = v0.vz * cLon - v0.vx * sLon;
+      let prevX = cx + (v0.vx * cLon + v0.vz * sLon) * radius;
+      let prevY = cy - (v0.vy * cLat - z0 * sLat) * radius;
+      let prevZ = v0.vy * sLat + z0 * cLat;
+      let prevLon = v0.lonDeg;
+
       for (let i = 1; i < poly.length; i++) {
-        const lat2 = poly[i][0];
-        const lon2 = poly[i][1];
-        const curPt = projectLatLon(lat2, lon2, radius, cx, cy);
-        if (Math.abs(lon2 - prevLon) < 90 && (prevPt.z >= 0 || curPt.z >= 0)) {
-          const avgZ = (prevPt.z + curPt.z) * 0.5;
+        const v = poly[i];
+        z0 = v.vz * cLon - v.vx * sLon;
+        const curX = cx + (v.vx * cLon + v.vz * sLon) * radius;
+        const curY = cy - (v.vy * cLat - z0 * sLat) * radius;
+        const curZ = v.vy * sLat + z0 * cLat;
+
+        if (Math.abs(v.lonDeg - prevLon) < 90 && (prevZ >= 0 || curZ >= 0)) {
+          const avgZ = (prevZ + curZ) * 0.5;
           if (avgZ > 0.55) {
-            coastCenter.moveTo(prevPt.x, prevPt.y);
-            coastCenter.lineTo(curPt.x, curPt.y);
+            coastCenter.moveTo(prevX, prevY);
+            coastCenter.lineTo(curX, curY);
           } else if (avgZ > 0.2) {
-            coastMid.moveTo(prevPt.x, prevPt.y);
-            coastMid.lineTo(curPt.x, curPt.y);
+            coastMid.moveTo(prevX, prevY);
+            coastMid.lineTo(curX, curY);
           } else if (avgZ > 0) {
-            coastHorizon.moveTo(prevPt.x, prevPt.y);
-            coastHorizon.lineTo(curPt.x, curPt.y);
+            coastHorizon.moveTo(prevX, prevY);
+            coastHorizon.lineTo(curX, curY);
           }
         }
-        prevPt = curPt;
-        prevLon = lon2;
+        prevX = curX;
+        prevY = curY;
+        prevZ = curZ;
+        prevLon = v.lonDeg;
       }
     }
 
@@ -3072,9 +3268,7 @@ if (globeCanvas && globeContainer) {
       }
     }
 
-    // 4B. VPN Connection Line (TTY 2..5):
-    // Always originates from livePhysicalOrigin (actual physical location, moving with flight if in-flight)
-    // Remains visible after arrival while VPN is active!
+    // 4B. VPN Connection Line (TTY 2..5)
     const activeVpnTransit = activeTty !== 1 ? activeVpnBridges[activeTty] : null;
     if (activeVpnTransit) {
       const steps = 32;
@@ -3136,37 +3330,42 @@ if (globeCanvas && globeContainer) {
       }
     }
 
-    // 5. Location Points (Current location hidden while unbooted; clicked city selection allowed in both states)
+    // 5. Location Points
     const isBootedOrBooting = bootState !== 'unbooted';
     const activeWorkspaceCityId = getActiveWorkspaceLocationId();
     projectedCities = [];
     gCtx.font = '10px "JetBrains Mono", monospace';
 
-    for (const city of CITIES) {
-      const pt = projectLatLon(city.lat, city.lon, radius, cx, cy);
-      projectedCities.push({ city, x: pt.x, y: pt.y, z: pt.z });
+    for (const item of precomputedCities) {
+      const { city, v } = item;
+      const z0 = v.vz * cLon - v.vx * sLon;
+      const px = cx + (v.vx * cLon + v.vz * sLon) * radius;
+      const py = cy - (v.vy * cLat - z0 * sLat) * radius;
+      const pz = v.vy * sLat + z0 * cLat;
 
-      if (pt.z > 0.08) {
+      projectedCities.push({ city, x: px, y: py, z: pz });
+
+      if (pz > 0.08) {
         const isCurrent = isBootedOrBooting && city.id === activeWorkspaceCityId;
         const isSelected = isBootedOrBooting
           ? city.id === selectedLocationId
           : city.id === unbootedSelectedCityId;
-        const alpha = clamp(0.45 + pt.z * 0.55, 0.45, 1);
+        const alpha = clamp(0.45 + pz * 0.55, 0.45, 1);
 
         gCtx.fillStyle = `rgba(255, 255, 255, ${isCurrent || isSelected ? '1.0' : alpha.toFixed(2)})`;
         gCtx.beginPath();
-        gCtx.arc(pt.x, pt.y, isCurrent || isSelected ? 2.8 : 2.0, 0, Math.PI * 2);
+        gCtx.arc(px, py, isCurrent || isSelected ? 2.8 : 2.0, 0, Math.PI * 2);
         gCtx.fill();
 
         if (isCurrent) {
           gCtx.strokeStyle = '#ffffff';
           gCtx.lineWidth = 1.2;
-          gCtx.strokeRect(pt.x - 6, pt.y - 6, 12, 12);
+          gCtx.strokeRect(px - 6, py - 6, 12, 12);
         } else if (isSelected) {
           gCtx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
           gCtx.lineWidth = 1;
           gCtx.beginPath();
-          gCtx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+          gCtx.arc(px, py, 6, 0, Math.PI * 2);
           gCtx.stroke();
         }
 
@@ -3174,12 +3373,24 @@ if (globeCanvas && globeContainer) {
           isCurrent || isSelected
             ? '#ffffff'
             : `rgba(255, 255, 255, ${(alpha * 0.78).toFixed(2)})`;
-        gCtx.fillText(city.name.toUpperCase(), pt.x + 8, pt.y + 3);
+        gCtx.fillText(city.name.toUpperCase(), px + 8, py + 3);
       }
     }
 
-    requestAnimationFrame(renderGlobe);
+    const needsNextFrame =
+      isPreBootRotating ||
+      isSettling ||
+      activeFlight !== null ||
+      hasActiveVpnBridge ||
+      activePointerId !== null ||
+      activeTouches.size > 0;
+
+    if (needsNextFrame) {
+      requestAnimationFrame(renderGlobe);
+    } else {
+      isGlobeLoopRunning = false;
+    }
   }
 
-  requestAnimationFrame(renderGlobe);
+  wakeGlobeLoop();
 }
