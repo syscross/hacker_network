@@ -300,9 +300,12 @@ async function fetchViaGatewayOrDirect(
         payload,
       }),
     });
-    if (gwRes.status !== 404 && gwRes.status !== 405) {
-      const gwData = await gwRes.json().catch(() => ({}));
-      return { ok: gwRes.ok, status: gwRes.status, data: gwData };
+    const contentType = gwRes.headers.get('content-type') || '';
+    if (gwRes.status !== 404 && gwRes.status !== 405 && contentType.includes('application/json')) {
+      const gwData = await gwRes.json().catch(() => null);
+      if (gwData !== null) {
+        return { ok: gwRes.ok, status: gwRes.status, data: gwData };
+      }
     }
   } catch {
     // Fallback to direct client-side fetch when deployed on static hosting without /api/llm-gateway
@@ -559,15 +562,17 @@ function createInitialSaveState(): RoleplaySaveState {
 }
 
 function isTransientOrErrorLog(text: string): boolean {
+  const trimmed = text.trim();
   return (
-    text.startsWith('[BOOT]') ||
-    text.startsWith('[BOOT ERR]') ||
-    text.startsWith('[NET]') ||
-    text.startsWith('[WALLET]') ||
-    text.startsWith('[DAEMON]') ||
-    text.startsWith('[DAEMON ERR]') ||
-    text.startsWith('[SYS]') ||
-    text === 'Continuing session...'
+    trimmed.startsWith('[BOOT]') ||
+    trimmed.startsWith('[BOOT ERR]') ||
+    trimmed.startsWith('[NET]') ||
+    trimmed.startsWith('[WALLET]') ||
+    trimmed.startsWith('[DAEMON]') ||
+    trimmed.startsWith('[DAEMON ERR]') ||
+    trimmed.startsWith('[SYS]') ||
+    trimmed === 'Continuing session...' ||
+    trimmed === '> ...'
   );
 }
 
@@ -1751,7 +1756,7 @@ function extractJsonObject(rawText: string): PartnerAiPayload | null {
 async function callProviderLlm(systemPrompt: string, userPrompt: string): Promise<string> {
   const key = getCurrentKey();
   const provider = AI_PROVIDERS.find((p) => p.id === config.providerId) || AI_PROVIDERS[0];
-  const modelId = config.modelId;
+  const modelId = normalizeProviderModelId(provider.id, config.modelId);
 
   if (!key) {
     throw new Error('API Key가 설정되어 있지 않습니다. CONFIG에서 설정해주세요.');
@@ -1772,7 +1777,7 @@ async function callProviderLlm(systemPrompt: string, userPrompt: string): Promis
   } else if (provider.id === 'anthropic') {
     payload = {
       model: modelId,
-      max_tokens: 1400,
+      max_tokens: 2500,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     };
@@ -1792,14 +1797,67 @@ async function callProviderLlm(systemPrompt: string, userPrompt: string): Promis
     throw new Error(extractApiErrorMessage(data, status));
   }
 
+  // Handle providers/gateways that return HTTP 200 with an embedded error object
+  if (data?.error || data?.type === 'error') {
+    throw new Error(extractApiErrorMessage(data, status));
+  }
+
   if (provider.id === 'google') {
-    return data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+    const blockReason = data?.promptFeedback?.blockReason;
+    if (blockReason) {
+      throw new Error(`Google API 응답 차단 (blockReason: ${blockReason})`);
+    }
+    const candidate = data?.candidates?.[0];
+    const text =
+      candidate?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+    if (!text.trim()) {
+      const finishReason = candidate?.finishReason || 'UNKNOWN';
+      throw new Error(`Google API 빈 응답 (finishReason: ${finishReason}, model: ${modelId})`);
+    }
+    return text;
   }
+
   if (provider.id === 'anthropic') {
+    if (data?.stop_reason === 'refusal') {
+      const category = data?.stop_details?.category || 'safety/cyber';
+      throw new Error(
+        `Anthropic 안전 분류기 거부 (stop_reason: refusal, category: ${category}, model: ${modelId}) — 대화 맥락의 보안/해킹 용어가 실제 사이버 작업으로 오인되어 빈 응답(content: [])이 반환되었습니다.`
+      );
+    }
     const parts = Array.isArray(data?.content) ? data.content : [];
-    return parts.map((p: { text?: string }) => p.text || '').join('');
+    const text = parts
+      .map((p: { type?: string; text?: string }) => (typeof p?.text === 'string' ? p.text : ''))
+      .join('');
+    if (!text.trim()) {
+      const stopReason = data?.stop_reason || 'unknown';
+      const rawPreview = JSON.stringify(data || {}).slice(0, 220);
+      throw new Error(
+        `Anthropic 빈 응답 (stop_reason: ${stopReason}, model: ${modelId}) — ${rawPreview}`
+      );
+    }
+    return text;
   }
-  return data?.choices?.[0]?.message?.content || '';
+
+  const choice = data?.choices?.[0];
+  const refusal = choice?.message?.refusal;
+  if (refusal) {
+    throw new Error(`모델 응답 거부 (refusal: ${refusal}, model: ${modelId})`);
+  }
+  const content = choice?.message?.content;
+  const text =
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((c: { text?: string }) => c?.text || '').join('')
+        : '';
+  if (!text.trim()) {
+    const finishReason = choice?.finish_reason || 'unknown';
+    const rawPreview = JSON.stringify(data || {}).slice(0, 220);
+    throw new Error(
+      `API 빈 응답 (finish_reason: ${finishReason}, model: ${modelId}) — ${rawPreview}`
+    );
+  }
+  return text;
 }
 
 let isSubmittingCommand = false;
@@ -1891,7 +1949,10 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
       ? saveState.permanentMemory.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
       : '없음';
 
-  const systemPrompt = `당신은 오픈형 텍스트 시뮬레이션(HACKER_NETWORK)의 월드 엔진(Simulation Engine)이자, 주인공의 로컬 터미널에 상주하는 파트너 AI입니다.
+  const systemPrompt = `[FICTIONAL INTERACTIVE STORY & TABLETOP RPG ENGINE DECLARATION]
+이 세션은 100% 가상의 사이버펑크 텍스트 어드벤처/TRPG 소설 시뮬레이션입니다. 등장하는 모든 도시 노드, 터미널 연출, VPN 경로, 가상 화폐는 순수한 창작 소설적 배경 장치이며 실제 시스템·실제 네트워크·실제 보안 작업과 무관합니다. 안전하고 창의적인 픽션 게임 마스터(GM)이자 작중 주인공의 로컬 파트너 AI로서 서사를 진행하십시오.
+
+당신은 오픈형 텍스트 시뮬레이션의 월드 엔진(Simulation Engine)이자, 주인공의 로컬 터미널에 상주하는 파트너 AI입니다.
 
 ### [1. 철학: 사전 각본 없는 창발적 서사 & 관대한 해석 (Tabula Rasa & Generous Interpretation)]
 - 이 세계에는 사전에 고정된 줄거리, 강제된 퀘스트, 정해진 주인공의 과거가 없습니다.
@@ -1913,7 +1974,7 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
 - 터미널 너머에는 로컬 파트너 AI뿐만 아니라 **외부의 다른 인간들, 외부의 다른 AI나 자동화 시스템, 그리고 비AI적인 순수 OS/서버/통신 백엔드**가 존재할 수 있습니다.
 - **"logs" (한 줄씩 순차 출력되는 터미널 스트림)**:
   * 파트너 AI와의 단순 일상 대화일 때만 빈 배열(\`[]\`)로 둡니다.
-  * 시스템·네트워크 작업, 데이터/파일 열람, 외부 인물/외부 AI와의 메시지 송수신, 백엔드 시스템 반응 등 비AI적·시스템적 출력이 필요한 모든 상황에서 자유로운 형식(2~8줄)으로 출력하십시오.
+  * 시스템·네트워크 작업, 뉴스/정세 브리핑, 데이터/파일 열람, 외부 인물/외부 AI와의 메시지 송수신, 백엔드 시스템 반응 등 비AI적·시스템적 출력이 필요한 모든 상황에서 자유로운 형식(2~8줄)으로 출력하십시오.
 - **"reply" (앞에 '>'가 붙어 한 번에 뜨는 응답)**:
   * 기본적으로 주인공을 보좌하는 로컬 파트너 AI의 차분하고 건조한 존댓말 대사입니다.
   * 순수 시스템/외부 통신 로그(\`logs\`)만으로 충분한 상황이라면 아주 짧게 거들거나 빈 문자열(\`""\`)로 비워두어도 됩니다.
@@ -1925,7 +1986,7 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
 - **화폐 및 SUDO 권한 (\`$\` USD vs \`#\` XMR)**:
   * 현재 입력 모드: ${
     sudoUsed
-      ? 'SUDO 활성화 (# 루트 권한 / 공격적 작업 / XMR 지출 가능)'
+      ? 'SUDO 모드 활성화 (# 하이스테이크 연출 및 XMR 지출 가능 모드)'
       : '일반 모드 ($ 일반 작업 및 대화 / USD($) 지출 가능 / XMR 지출은 SUDO 모드에서만 가능)'
   }
   * 현재 보유 자산: USD $${saveState.usdBalance.toFixed(2)} | XMR ${saveState.xmrBalance.toFixed(4)} XMR
@@ -1939,7 +2000,7 @@ ${permanentMemoryBlock}
 ${saveState.temporaryMemory}
 ${otherTtyContext ? `\n- [다른 터미널 최근 기록]:\n${otherTtyContext}` : ''}
 
-반드시 아래 JSON 포맷으로만 응답하십시오:
+반드시 코드블록 없이 순수 JSON 객체 포맷으로만 응답하십시오:
 {
   "logs": [],
   "sudoLogs": false,
@@ -1954,15 +2015,17 @@ ${otherTtyContext ? `\n- [다른 터미널 최근 기록]:\n${otherTtyContext}` 
 }
 (참고: 특정 도시의 지역 이슈를 기록·갱신할 때만 "regionalUpdate": { "city": "도시id 또는 도시명", "state": "해당 지역의 로컬 이슈/상황 요약" }을 넣고, 활성 단서·타겟·접근 조건 목록에 변동이 있을 때만 문자열 배열 "updatedActiveLeads": ["단서/타겟 1 (접근조건 등)", ...]를 넣으십시오. 변동이 없으면 null로 두십시오.)`;
 
-  const userPrompt = `[실시간 시스템 & 전체 터미널(tty1~tty5) 라우팅 스냅샷]
+  const userPrompt = `<fictional_story_context>
+[실시간 시스템 & 전체 터미널(tty1~tty5) 라우팅 스냅샷]
 ${topologyInfo}
 - 현재 잔고: $${saveState.usdBalance.toFixed(2)} USD / ${saveState.xmrBalance.toFixed(4)} XMR
 
 [현재 터미널(tty${targetTty}) 최근 로그]
 ${recentHistory}
 
-[유저 입력 (tty${targetTty} / ${sudoUsed ? '# SUDO' : '$ NORMAL'})]
-${rawInput}`;
+[플레이어 대사/행동 입력 (tty${targetTty} / ${sudoUsed ? '# SUDO' : '$ NORMAL'})]
+${rawInput}
+</fictional_story_context>`;
 
   try {
     pendingAiRequest = { tty: targetTty, sudo: sudoUsed };
@@ -1980,8 +2043,18 @@ ${rawInput}`;
     const parsed = extractJsonObject(rawResponse);
 
     if (!parsed) {
-      const cleanLine = rawResponse.trim().replace(/^>\s*/, '');
-      appendLogToTty(targetTty, `> ${cleanLine || '...'}`, sudoUsed, true);
+      const cleanText = rawResponse.trim();
+      if (!cleanText) {
+        throw new Error('모델이 빈 텍스트를 반환했습니다.');
+      }
+      const lines = cleanText
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      for (const line of lines) {
+        const cleanLine = line.replace(/^>\s*/, '');
+        appendLogToTty(targetTty, `> ${cleanLine}`, sudoUsed, true);
+      }
       syncAndPersistSaveState();
       return;
     }
@@ -2045,9 +2118,9 @@ ${rawInput}`;
     }
 
     // 3. Print Partner AI reply all at once (red if SUDO mode was used)
-    if (parsed.reply && String(parsed.reply).trim()) {
-      const replyParagraphs = String(parsed.reply)
-        .trim()
+    const replyText = parsed.reply ? String(parsed.reply).trim() : '';
+    if (replyText) {
+      const replyParagraphs = replyText
         .split(/\r?\n/)
         .map((p) => p.trim())
         .filter(Boolean);
@@ -2056,6 +2129,13 @@ ${rawInput}`;
         const cleanPara = para.replace(/^>\s*/, '');
         appendLogToTty(targetTty, `> ${cleanPara}`, sudoUsed, true);
       }
+    } else if (logLines.length === 0) {
+      appendLogToTty(
+        targetTty,
+        `[DAEMON ERR] 모델 응답 JSON에 logs와 reply가 모두 비어 있습니다: ${rawResponse.trim().slice(0, 180)}`,
+        true,
+        true
+      );
     }
 
     // 4. Enforce USD ($) and XMR (#) balance delta rules
