@@ -3144,44 +3144,21 @@ if (globeCanvas && globeContainer) {
     const rawDeltaX = e.deltaX * factor;
     const rawDeltaY = e.deltaY * factor;
 
-    // 1. Touchpad Pinch-to-Zoom (ctrlKey is set by browsers for two-finger trackpad pinch) or scrolling directly on #zoom-axis
-    if (e.ctrlKey || isOverZoomAxis) {
-      const zoomMultiplier = e.ctrlKey ? 0.011 : 0.0026;
-      targetZoom = clamp(targetZoom - rawDeltaY * zoomMultiplier, MIN_ZOOM, MAX_ZOOM);
-      wakeGlobeLoop();
-      return;
+    // 1. Two-touch vertical scroll (trackpad up/down or mouse wheel) = ZOOM IN / ZOOM OUT
+    if (Math.abs(rawDeltaY) > 0 || e.ctrlKey || isOverZoomAxis) {
+      const zoomMultiplier = e.ctrlKey ? 0.011 : 0.0025;
+      const zoomDelta = -rawDeltaY * zoomMultiplier;
+      targetZoom = clamp(targetZoom + zoomDelta, MIN_ZOOM, MAX_ZOOM);
     }
 
-    // 2. Detect Touchpad Two-Finger Swipe (left/right/up/down) vs Discrete Mouse Wheel
-    const now = performance.now();
-    const wheelDeltaY = (e as unknown as { wheelDeltaY?: number }).wheelDeltaY;
-    const isFractionalOrSmoothWheel =
-      e.deltaMode === 0 &&
-      (Math.abs(e.deltaX) > 0 ||
-        !Number.isInteger(e.deltaY) ||
-        Math.abs(e.deltaY) < 48 ||
-        (typeof wheelDeltaY === 'number' && Math.abs(wheelDeltaY) % 120 !== 0));
-
-    if (isFractionalOrSmoothWheel) {
-      lastTouchpadPanTime = now;
-    }
-
-    const isTouchpadTwoFingerSwipe =
-      Math.abs(rawDeltaX) > 0 || isFractionalOrSmoothWheel || now - lastTouchpadPanTime < 360;
-
+    // 2. Two-touch horizontal scroll (trackpad swipe left/right) = ROTATE HORIZONTALLY (Longitude)
     const isLockedByTransit = getActiveTransitForCurrentTty() !== null;
-
-    if (isTouchpadTwoFingerSwipe && !isLockedByTransit) {
+    if (Math.abs(rawDeltaX) > 0 && !isLockedByTransit) {
+      lastTouchpadPanTime = performance.now();
       const sensitivity = 0.0046 / Math.sqrt(zoomLevel);
       targetLon += rawDeltaX * sensitivity;
-      targetLat = clamp(targetLat + rawDeltaY * sensitivity, -MAX_LAT_TILT, MAX_LAT_TILT);
-      wakeGlobeLoop();
-      return;
     }
 
-    // 3. Fallback: Discrete physical mouse wheel zooms in/out
-    const delta = -rawDeltaY * 0.0025;
-    targetZoom = clamp(targetZoom + delta, MIN_ZOOM, MAX_ZOOM);
     wakeGlobeLoop();
   };
 
@@ -3311,21 +3288,24 @@ if (globeCanvas && globeContainer) {
   });
 
   const endPointerDrag = (e: PointerEvent) => {
-    const targetEl = e.target as HTMLElement | null;
-    if (targetEl && (targetEl.closest('#location-action-bar') || targetEl.closest('#zoom-axis'))) {
-      return;
-    }
-
     activeTouches.delete(e.pointerId);
-    if (activeTouches.size < 2) {
+    if (activeTouches.size === 0) {
       initialPinchDist = null;
+      activePointerId = null;
     }
     if (globeContainer.hasPointerCapture(e.pointerId)) {
       globeContainer.releasePointerCapture(e.pointerId);
     }
 
-    if (activePointerId !== e.pointerId) return;
-    activePointerId = null;
+    if (activePointerId === e.pointerId) {
+      activePointerId = null;
+    }
+
+    const targetEl = e.target as HTMLElement | null;
+    if (targetEl && (targetEl.closest('#location-action-bar') || targetEl.closest('#zoom-axis'))) {
+      wakeGlobeLoop();
+      return;
+    }
 
     const isLockedByTransit = getActiveTransitForCurrentTty() !== null;
     if (!wasDragged && !isLockedByTransit) {
@@ -3349,6 +3329,9 @@ if (globeCanvas && globeContainer) {
         if (hitCity) {
           e.preventDefault();
           unbootedSelectedCityId = hitCity.id;
+          if (focusCityOnGlobe) {
+            focusCityOnGlobe(hitCity);
+          }
         } else {
           unbootedSelectedCityId = null;
         }
@@ -3356,6 +3339,9 @@ if (globeCanvas && globeContainer) {
         if (hitCity) {
           e.preventDefault();
           globeSelectedCityId = hitCity.id;
+          if (focusCityOnGlobe) {
+            focusCityOnGlobe(hitCity);
+          }
           renderLocationActionBar();
         } else {
           globeSelectedCityId = null;
@@ -3485,18 +3471,9 @@ if (globeCanvas && globeContainer) {
     gCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     gCtx.clearRect(0, 0, w, h);
 
-    const isTouchpadInteracting = now - lastTouchpadPanTime < 1200;
-    const isPreBootRotating =
-      bootState === 'unbooted' &&
-      activePointerId === null &&
-      activeTouches.size === 0 &&
-      !isTouchpadInteracting &&
-      unbootedSelectedCityId === null;
-
-    // Pre-Boot State: Calm counterclockwise auto-rotation (never resets or springs vertical tilt)
-    if (isPreBootRotating) {
-      targetLon += 0.00055;
-    }
+    const isTouchpadInteracting = now - lastTouchpadPanTime < 160;
+    const isUserDirectInteracting =
+      activePointerId !== null || activeTouches.size > 0 || isTouchpadInteracting;
 
     // Physical Flight Progress (TTY 1 and any VPN-unused session following TTY 1)
     const activeFollowsFlight =
@@ -3589,9 +3566,6 @@ if (globeCanvas && globeContainer) {
     const dZoom = targetZoom - zoomLevel;
     const isSettling =
       Math.abs(dLon) > 0.00015 || Math.abs(dLat) > 0.00015 || Math.abs(dZoom) > 0.0004;
-
-    const isUserDirectInteracting =
-      activePointerId !== null || activeTouches.size > 0 || now - lastTouchpadPanTime < 140;
 
     if (isUserDirectInteracting) {
       rotLon = targetLon;
@@ -4021,13 +3995,12 @@ if (globeCanvas && globeContainer) {
     }
 
     const needsNextFrame =
-      isPreBootRotating ||
       isSettling ||
       activeFlight !== null ||
       hasActiveVpnBridge ||
       activePointerId !== null ||
       activeTouches.size > 0 ||
-      now - lastTouchpadPanTime < 180;
+      isTouchpadInteracting;
 
     if (needsNextFrame) {
       requestAnimationFrame(renderGlobe);
