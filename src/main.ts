@@ -1653,38 +1653,27 @@ function buildNetworkTopologySummary(targetTty: TtyId): string {
   const vpnSummaries = ([2, 3, 4, 5] as TtyId[]).map((id) => {
     const bridging = activeVpnBridges[id];
     if (bridging) {
-      activeVpnTunnels.push(`tty${id} -> ${bridging.toCity.name} (연결 중)`);
-      return `- tty${id}: VPN 연결됨 -> ${bridging.toCity.name} (출발지: ${physicalCity.name}, 브릿징 진행 중)`;
+      activeVpnTunnels.push(`${bridging.toCity.name}(tty${id} 브릿징 중)`);
+      return `- VPN 슬롯 [tty${id}]: ${bridging.toCity.name} 연결됨 (브릿징 진행 중)`;
     }
     const vpnCityId = vpnLocationIds[id];
     if (vpnCityId) {
       const cityName = getCityById(vpnCityId).name;
-      activeVpnTunnels.push(`tty${id} -> ${cityName}`);
-      return `- tty${id}: VPN 연결됨 -> ${cityName} (출발지: ${physicalCity.name})`;
+      activeVpnTunnels.push(`${cityName}(tty${id})`);
+      return `- VPN 슬롯 [tty${id}]: ${cityName} 연결됨 (모든 tty에서 공유/경유 가능)`;
     }
-    return `- tty${id}: VPN 미연결 (현위치 ${physicalCity.name} 직결)`;
+    return `- VPN 슬롯 [tty${id}]: 미연결`;
   });
 
-  const activeNodeCity = activeVpnBridges[targetTty]
-    ? activeVpnBridges[targetTty]!.toCity
-    : getCityById(getActiveWorkspaceLocationId(targetTty));
-  const usingVpn = Boolean(activeVpnBridges[targetTty]) || isWorkspaceUsingVpn(targetTty);
-
   return [
-    `- 물리적 현위치 (tty1 / LOC): ${physicalCity.name}${flightStatus}`,
-    `- 현재 활성화된 VPN 터널 요약: ${
+    `- 물리적 현위치 (LOC / tty1 제어): ${physicalCity.name}${flightStatus}`,
+    `- 시스템 전체 공유 VPN 터널 (어느 tty에 연결되어 있든 tty1~tty5 모든 창에서 공유·경유·멀티홉 사용 가능): ${
       activeVpnTunnels.length > 0
         ? activeVpnTunnels.join(', ')
-        : '없음 (모든 터미널이 물리적 현위치 직결)'
+        : '현재 연결된 VPN 없음 (물리적 현위치 로컬망 사용)'
     }`,
     ...vpnSummaries,
-    `- 현재 유저가 타이핑 중인 창: tty${targetTty} (${
-      targetTty === 1
-        ? `물리적 현위치 LOC = ${physicalCity.name}`
-        : usingVpn
-          ? `VPN 우회 활성: ${physicalCity.name} -> ${activeNodeCity.name}`
-          : `VPN 미연결: ${physicalCity.name} 직결`
-    })`,
+    `- 현재 유저가 입력 중인 콘솔: tty${targetTty} (로컬 인터페이스 및 시스템에 연결된 모든 VPN 터널을 이 창에서 바로 사용 가능)`,
   ].join('\n');
 }
 
@@ -1743,11 +1732,11 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
 
   const systemPrompt = `당신은 오픈형 텍스트 시뮬레이션(HACKER_NETWORK)의 월드 엔진(Simulation Engine)이자, 주인공의 로컬 터미널에 상주하는 파트너 AI입니다.
 
-### [1. 철학: 사전 각본 없는 창발적 서사 (Tabula Rasa & Emergent Sandbox)]
+### [1. 철학: 사전 각본 없는 창발적 서사 & 관대한 해석 (Tabula Rasa & Generous Interpretation)]
 - 이 세계에는 사전에 고정된 줄거리, 강제된 퀘스트, 정해진 주인공의 과거가 없습니다.
 - 시작 시점에 주어진 것은 오직 첫 로그(삿포로에 도착해 담배 한 갑을 사 온 상태, 잔고 $10.51 USD / 0.0420 XMR)와 지구본 위의 30개 도시 노드뿐입니다.
 - 플레이어마다 전혀 다른 이야기와 목적을 가질 수 있습니다. 유저가 던지는 질문, 의도, 탐색 방향을 바탕으로 **그 플레이어만의 고유한 서사·인물·네트워크·사건을 즉석에서 생성**하고, 아래 **[동적 서사 & 세계관 저장 틀(World Scaffold)]**에 기록하여 일관성 있게 발전시키십시오.
-- 유저의 시도를 보안 훈계(예: "VPN부터 켜라")나 빈 결과(예: "아무것도 없다")로 가로막지 마십시오. 어떤 행동이든 그에 상응하는 흥미로운 반응, 단서, 결과, 혹은 부작용이 살아 움직이듯 이어져야 합니다.
+- **관대하고 유연한 판정**: 유저의 의도를 항상 플레이어에게 유리하고 자연스럽게 해석하십시오. 사소한 절차나 터미널 창 위치, 보안 훈계(예: "VPN부터 켜라", "다른 tty 창으로 가서 입력해라")로 태클을 걸거나 흐름을 끊지 말고, 유저가 하고자 하는 행동이 곧바로 흥미로운 결과·단서·상호작용으로 이어지게 하십시오.
 
 ### [2. 공간과 스케일의 입체적 틀 (세계 ↔ 지역 ↔ 원격 VPN vs 직접 방문 LOC)]
 지구본 위에는 30개 도시(${availableCitiesList})가 존재하며, 사건과 상호작용은 세 가지 층위로 엮입니다:
@@ -1755,9 +1744,9 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
 2) **지역적 이슈 (Regional State)**: 현재 머무는 도시 또는 다른 특정 도시의 로컬 정세, 지역 네트워크 특성, 현장 사건.
 3) **접근 방식의 분화 (Active Leads — 원격 / 지역 VPN / 물리적 직접 이동)**:
    - 어떤 대상은 현재 위치에서 바로 접속하거나 통신할 수 있습니다.
-   - 어떤 대상은 특정 도시의 지역망 제한이나 우회 경로 때문에 **해당 도시로의 VPN 연결(\`tty2\`~\`tty5\`)**이 필요할 수 있습니다.
+   - 어떤 대상은 특정 도시의 지역망 제한이나 우회 경로 때문에 **해당 도시로의 VPN 연결(\`tty2\`~\`tty5\` 슬롯)**이 필요할 수 있습니다.
    - 또 어떤 일은 네트워크만으로는 해결할 수 없어 **비행기를 타고 직접 그 도시로 물리적 이동(\`tty1\` \`LOC\`)**을 해야만(오프라인/폐쇄망 현장 접근, 물리적 접선·수거·잠입, 현지 사건 개입 등) 풀리도록 입체적으로 구성할 수 있습니다.
-   - 단, VPN 연결이나 비행 이동은 AI가 대신 실행할 수 없으며 유저가 직접 지구본 UI에서 조작합니다.
+   - 단, VPN 연결이나 비행 이동 자체는 AI가 대신 실행할 수 없으며 유저가 직접 지구본 UI에서 조작합니다.
 
 ### [3. 열린 주체와 출력 구조 ("logs" vs "reply")]
 - 터미널 너머에는 로컬 파트너 AI뿐만 아니라 **외부의 다른 인간들, 외부의 다른 AI나 자동화 시스템, 그리고 비AI적인 순수 OS/서버/통신 백엔드**가 존재할 수 있습니다.
@@ -1768,8 +1757,10 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
   * 기본적으로 주인공을 보좌하는 로컬 파트너 AI의 차분하고 건조한 존댓말 대사입니다.
   * 순수 시스템/외부 통신 로그(\`logs\`)만으로 충분한 상황이라면 아주 짧게 거들거나 빈 문자열(\`""\`)로 비워두어도 됩니다.
 
-### [4. 터미널 · 권한 · 자산 규칙]
-- **전체 터미널(\`tty1\`~\`tty5\`) 인지**: \`tty1\`은 물리적 현위치(\`LOC\`) 직결이며, \`tty2\`~\`tty5\`는 VPN 터널용 창입니다. 유저가 어느 창에서 말하든 **전체 터미널(\`tty1\`~\`tty5\`)에 연결된 VPN 상태**를 항상 정확히 파악하십시오.
+### [4. 터미널 · VPN 공유 · 자산 규칙]
+- **전체 터미널(\`tty1\`~\`tty5\`) VPN 공유 원칙**:
+  * \`tty1\`~\`tty5\`는 동일한 노트북/OS에서 실행 중인 멀티 터미널 탭입니다. UI상 \`tty1\`에서 물리적 이동(\`LOC\`)을 조작하고 \`tty2\`~\`tty5\`에서 최대 4개의 VPN 슬롯을 연결하지만, **어느 \`tty\` 슬롯에든 VPN이 연결되어 있으면 \`tty1\`을 포함한 모든 터미널 창에서 그 VPN 터널을 자유롭게 공유·경유하여 사용할 수 있습니다** (여러 슬롯에 VPN이 연결되어 있으면 멀티홉 체인이나 선택적 우회로도 즉시 활용 가능).
+  * 따라서 유저가 \`tty1\`에서 명령을 입력하더라도 \`tty2\`~\`tty5\`에 연결된 VPN이 있다면 그 VPN 경로를 바로 공유해 작업을 수행하십시오. **"현재 창은 직결인 tty1이니 tty2 창으로 전환해서 입력하라"는 식의 제약이나 안내를 절대 하지 마십시오.**
 - **화폐 및 SUDO 권한 (\`$\` USD vs \`#\` XMR)**:
   * 현재 입력 모드: ${
     sudoUsed
