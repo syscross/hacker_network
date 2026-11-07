@@ -450,32 +450,36 @@ interface CityNode {
   name: string;
   lat: number;
   lon: number;
+  /** XMR(#) cost to establish/plant VPN at this city (0 = FREE) */
+  vpnXmrCost: number;
+  /** If true, remote VPN routing is blocked; must physically visit (LOC) and use Plant VPN Here */
+  directVpnOnly?: boolean;
 }
 
 const CITIES: CityNode[] = [
-  { id: 'sapporo', name: 'Sapporo', lat: 43.0618, lon: 141.3545 },
-  { id: 'tokyo', name: 'Tokyo', lat: 35.6762, lon: 139.6503 },
-  { id: 'seoul', name: 'Seoul', lat: 37.5665, lon: 126.978 },
-  { id: 'shanghai', name: 'Shanghai', lat: 31.2304, lon: 121.4737 },
-  { id: 'hongkong', name: 'Hong Kong', lat: 22.3193, lon: 114.1694 },
-  { id: 'singapore', name: 'Singapore', lat: 1.3521, lon: 103.8198 },
-  { id: 'sydney', name: 'Sydney', lat: -33.8688, lon: 151.2093 },
-  { id: 'bengaluru', name: 'Bengaluru', lat: 12.9716, lon: 77.5946 },
-  { id: 'dubai', name: 'Dubai', lat: 25.2048, lon: 55.2708 },
-  { id: 'moscow', name: 'Moscow', lat: 55.7558, lon: 37.6173 },
-  { id: 'istanbul', name: 'Istanbul', lat: 41.0082, lon: 28.9784 },
-  { id: 'cairo', name: 'Cairo', lat: 30.0444, lon: 31.2357 },
-  { id: 'johannesburg', name: 'Johannesburg', lat: -26.2041, lon: 28.0473 },
-  { id: 'frankfurt', name: 'Frankfurt', lat: 50.1109, lon: 8.6821 },
-  { id: 'zurich', name: 'Zurich', lat: 47.3769, lon: 8.5417 },
-  { id: 'london', name: 'London', lat: 51.5072, lon: -0.1276 },
-  { id: 'reykjavik', name: 'Reykjavik', lat: 64.1466, lon: -21.9426 },
-  { id: 'newyork', name: 'New York', lat: 40.7128, lon: -74.006 },
-  { id: 'toronto', name: 'Toronto', lat: 43.6532, lon: -79.3832 },
-  { id: 'sanfrancisco', name: 'San Francisco', lat: 37.7749, lon: -122.4194 },
-  { id: 'mexico', name: 'Mexico City', lat: 19.4326, lon: -99.1332 },
-  { id: 'saopaulo', name: 'São Paulo', lat: -23.5505, lon: -46.6333 },
-  { id: 'buenosaires', name: 'Buenos Aires', lat: -34.6037, lon: -58.3816 },
+  { id: 'sapporo', name: 'Sapporo', lat: 43.0618, lon: 141.3545, vpnXmrCost: 0, directVpnOnly: true },
+  { id: 'tokyo', name: 'Tokyo', lat: 35.6762, lon: 139.6503, vpnXmrCost: 0 },
+  { id: 'seoul', name: 'Seoul', lat: 37.5665, lon: 126.978, vpnXmrCost: 0 },
+  { id: 'shanghai', name: 'Shanghai', lat: 31.2304, lon: 121.4737, vpnXmrCost: 0.003, directVpnOnly: true },
+  { id: 'hongkong', name: 'Hong Kong', lat: 22.3193, lon: 114.1694, vpnXmrCost: 0.002 },
+  { id: 'singapore', name: 'Singapore', lat: 1.3521, lon: 103.8198, vpnXmrCost: 0.0025 },
+  { id: 'sydney', name: 'Sydney', lat: -33.8688, lon: 151.2093, vpnXmrCost: 0.0015 },
+  { id: 'bengaluru', name: 'Bengaluru', lat: 12.9716, lon: 77.5946, vpnXmrCost: 0 },
+  { id: 'dubai', name: 'Dubai', lat: 25.2048, lon: 55.2708, vpnXmrCost: 0.004, directVpnOnly: true },
+  { id: 'moscow', name: 'Moscow', lat: 55.7558, lon: 37.6173, vpnXmrCost: 0.0035, directVpnOnly: true },
+  { id: 'istanbul', name: 'Istanbul', lat: 41.0082, lon: 28.9784, vpnXmrCost: 0 },
+  { id: 'cairo', name: 'Cairo', lat: 30.0444, lon: 31.2357, vpnXmrCost: 0, directVpnOnly: true },
+  { id: 'johannesburg', name: 'Johannesburg', lat: -26.2041, lon: 28.0473, vpnXmrCost: 0.0015 },
+  { id: 'frankfurt', name: 'Frankfurt', lat: 50.1109, lon: 8.6821, vpnXmrCost: 0.0025 },
+  { id: 'zurich', name: 'Zurich', lat: 47.3769, lon: 8.5417, vpnXmrCost: 0.005 },
+  { id: 'london', name: 'London', lat: 51.5072, lon: -0.1276, vpnXmrCost: 0.003 },
+  { id: 'reykjavik', name: 'Reykjavik', lat: 64.1466, lon: -21.9426, vpnXmrCost: 0.0045 },
+  { id: 'newyork', name: 'New York', lat: 40.7128, lon: -74.006, vpnXmrCost: 0.003 },
+  { id: 'toronto', name: 'Toronto', lat: 43.6532, lon: -79.3832, vpnXmrCost: 0.0015 },
+  { id: 'sanfrancisco', name: 'San Francisco', lat: 37.7749, lon: -122.4194, vpnXmrCost: 0.003 },
+  { id: 'mexico', name: 'Mexico City', lat: 19.4326, lon: -99.1332, vpnXmrCost: 0 },
+  { id: 'saopaulo', name: 'São Paulo', lat: -23.5505, lon: -46.6333, vpnXmrCost: 0 },
+  { id: 'buenosaires', name: 'Buenos Aires', lat: -34.6037, lon: -58.3816, vpnXmrCost: 0.002, directVpnOnly: true },
 ];
 
 const DEG2RAD = Math.PI / 180;
@@ -590,9 +594,7 @@ function sanitizeSaveState(raw: unknown): RoleplaySaveState {
     for (const id of [2, 3, 4, 5] as TtyId[]) {
       const candidate = obj.vpnLocationIds[id];
       vpnMap[id] =
-        typeof candidate === 'string' &&
-        CITIES.some((c) => c.id === candidate) &&
-        candidate !== validCity
+        typeof candidate === 'string' && CITIES.some((c) => c.id === candidate)
           ? candidate
           : null;
     }
@@ -719,7 +721,7 @@ const vpnLocationIds: Record<TtyId, string | null> = {
   5: saveState.vpnLocationIds[5],
 };
 
-let selectedLocationId: string = physicalLocationId;
+let globeSelectedCityId: string | null = null;
 let unbootedSelectedCityId: string | null = null;
 let displayedUsd = 0;
 let displayedXmr = 0;
@@ -749,6 +751,7 @@ function getActiveWorkspaceLocationId(tty: TtyId = activeTty): string {
 interface TransitState {
   fromCity: CityNode;
   toCity: CityNode;
+  camStartCity: CityNode;
   startTime: number;
   durationMs: number;
   progress: number;
@@ -1323,13 +1326,46 @@ function normalizeAngleDiff(target: number, current: number): number {
 }
 
 let focusCityOnGlobe: ((city: CityNode) => void) | null = null;
+let getCurrentGlobeCameraCity: (() => CityNode) | null = null;
 let requestGlobeWake: (() => void) | null = null;
+
+function getFlightUsdCost(origin: CityNode, dest: CityNode): number {
+  if (origin.id === dest.id) return 0;
+  const radDist = getAngularDistance(origin, dest);
+  const raw = 3.5 + (radDist / Math.PI) * 24.5;
+  return Number(raw.toFixed(2));
+}
+
+function formatVpnCostBadge(city: CityNode): string {
+  if (city.vpnXmrCost <= 0) return 'FREE';
+  return `${city.vpnXmrCost.toFixed(4)} #`;
+}
+
+function bindInstantButton(el: HTMLElement | null, handler: () => void) {
+  if (!el) return;
+  let handledByPointer = false;
+  el.addEventListener('mousedown', (e) => e.preventDefault());
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handledByPointer = true;
+    handler();
+  });
+  el.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (handledByPointer) {
+      handledByPointer = false;
+      return;
+    }
+    handler();
+  });
+}
 
 function switchTtyWorkspace(targetTty: TtyId) {
   activeTty = targetTty;
-  if (bootState !== 'unbooted') {
-    const activeCityId = getActiveWorkspaceLocationId();
-    selectedLocationId = activeCityId;
+  if (bootState !== 'unbooted' && globeSelectedCityId === null) {
+    const activeCityId = getActiveWorkspaceLocationId(targetTty);
     const city = getCityById(activeCityId);
     if (focusCityOnGlobe) focusCityOnGlobe(city);
   }
@@ -1348,8 +1384,6 @@ function getActiveTransitForCurrentTty(): TransitState | null {
   return null;
 }
 
-let lastGlobeSelectTimestamp = 0;
-
 function renderLocationActionBar() {
   const bar = document.getElementById('location-action-bar');
   if (!bar) return;
@@ -1362,12 +1396,11 @@ function renderLocationActionBar() {
 
   const isLocTty = activeTty === 1;
   const usingVpn = isWorkspaceUsingVpn(activeTty);
-  const modeBadge = usingVpn ? 'VPN' : 'LOC';
-  const currentCityId = getActiveWorkspaceLocationId();
-  const currentCity = getCityById(currentCityId);
   const physicalCity = getCityById(physicalLocationId);
-  const isOtherSelected = selectedLocationId !== currentCityId;
-  const selectedCity = isOtherSelected ? getCityById(selectedLocationId) : null;
+  // Right-side return button target: VPN location when VPN is set, physical location when not set
+  const anchorCityId = usingVpn ? vpnLocationIds[activeTty]! : physicalLocationId;
+  const anchorCity = getCityById(anchorCityId);
+  const selectedCity = globeSelectedCityId ? getCityById(globeSelectedCityId) : null;
 
   // 1. Active Physical Flight (shown on TTY 1, or on VPN-unused sessions following TTY 1)
   if (activeFlight && (isLocTty || (!usingVpn && !activeVpnBridges[activeTty]))) {
@@ -1386,11 +1419,16 @@ function renderLocationActionBar() {
     return;
   }
 
-  // 2. Active VPN Route / Testing Ping (TTY 2..5)
+  // 2. Active VPN Route / Planting / Testing Ping (TTY 2..5)
   const activeVpnTransit = !isLocTty ? activeVpnBridges[activeTty] : null;
   if (!isLocTty && activeVpnTransit) {
+    const isLocalPlant = activeVpnTransit.toCity.id === physicalLocationId;
     const isPingPhase = activeVpnTransit.progress < 0.55;
-    const statusLabel = isPingPhase ? 'Testing Ping' : 'Bridging';
+    const statusLabel = isLocalPlant
+      ? 'Planting VPN'
+      : isPingPhase
+        ? 'Testing Ping'
+        : 'Bridging';
     bar.innerHTML = `
       <button
         disabled
@@ -1406,165 +1444,211 @@ function renderLocationActionBar() {
     return;
   }
 
-  // 3. Target Location Selected (different from current active node)
-  if (selectedCity) {
-    if (isLocTty) {
+  const returnBtnHtml = `
+    <button
+      id="return-anchor-btn"
+      type="button"
+      title="${usingVpn ? `VPN 지점으로 돌아가기 (${anchorCity.name})` : `현위치로 돌아가기 (${anchorCity.name})`}"
+      class="px-2.5 py-1 bg-[#0a0a0a]/95 text-neutral-300 border border-neutral-600 hover:border-neutral-200 hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+    >
+      ${anchorCity.name}
+    </button>
+  `;
+
+  const attachReturnBtnHandler = () => {
+    bindInstantButton(document.getElementById('return-anchor-btn'), () => {
+      globeSelectedCityId = null;
+      if (focusCityOnGlobe) focusCityOnGlobe(anchorCity);
+      renderLocationActionBar();
+    });
+  };
+
+  // 3. TTY 1 (Physical Location / Flight Mode)
+  if (isLocTty) {
+    if (selectedCity && selectedCity.id !== physicalLocationId) {
+      const flightCost = getFlightUsdCost(physicalCity, selectedCity);
       bar.innerHTML = `
         <button
           id="primary-move-btn"
+          type="button"
           class="px-2.5 py-1 bg-neutral-100 text-black font-bold border border-neutral-100 hover:bg-white transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
         >
           <span>[✈]</span>
           <span>Flight to ${selectedCity.name}</span>
+          <span class="text-[10px] font-semibold text-neutral-800 tabular-nums">· $${flightCost.toFixed(2)}</span>
         </button>
-        <button
-          id="focus-current-btn"
-          title="Return focus to current location (${currentCity.name})"
-          class="px-2 py-1 bg-[#0a0a0a]/90 text-neutral-400 border border-neutral-700 hover:border-neutral-300 hover:text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-        >
-          ${currentCity.name}
-        </button>
+        ${returnBtnHtml}
       `;
-
-      document.getElementById('primary-move-btn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (performance.now() - lastGlobeSelectTimestamp < 250) return;
+      bindInstantButton(document.getElementById('primary-move-btn'), () => {
         startFlightTo(selectedCity);
       });
-    } else if (usingVpn && selectedCity.id === physicalLocationId) {
-      // Physical location selected while VPN is active -> Show Unset VPN (instant disconnect)
-      bar.innerHTML = `
-        <button
-          id="unset-vpn-btn"
-          class="px-2.5 py-1 bg-neutral-100 text-black font-bold border border-neutral-100 hover:bg-white transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
-        >
-          <span>[VPN]</span>
-          <span>Unset VPN</span>
-        </button>
-        <button
-          id="focus-current-btn"
-          title="Return focus to active VPN node (${currentCity.name})"
-          class="px-2 py-1 bg-[#0a0a0a]/90 text-neutral-400 border border-neutral-700 hover:border-neutral-300 hover:text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-        >
-          ${currentCity.name}
-        </button>
-      `;
+      attachReturnBtnHandler();
+      return;
+    }
 
-      document.getElementById('unset-vpn-btn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (performance.now() - lastGlobeSelectTimestamp < 250) return;
-        unsetVpnForActiveTty();
-      });
-    } else {
-      bar.innerHTML = `
+    bar.innerHTML = `
+      <div class="flex items-center gap-1.5 bg-[#0a0a0a]/95 border border-neutral-600 px-2 py-1">
         <button
-          id="primary-move-btn"
-          class="px-2.5 py-1 bg-neutral-100 text-black font-bold border border-neutral-100 hover:bg-white transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
+          id="current-loc-btn"
+          type="button"
+          class="px-1.5 py-0.5 bg-neutral-200 text-black font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
         >
-          <span>[VPN]</span>
-          <span>Route to ${selectedCity.name}</span>
+          LOC
         </button>
         <button
-          id="focus-current-btn"
-          title="Return focus to current node (${currentCity.name})"
-          class="px-2 py-1 bg-[#0a0a0a]/90 text-neutral-400 border border-neutral-700 hover:border-neutral-300 hover:text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-        >
-          ${currentCity.name}
-        </button>
-        ${
-          usingVpn
-            ? `
-        <button
-          id="focus-physical-btn"
-          title="Select physical location (${physicalCity.name})"
-          class="px-2 py-1 bg-[#0a0a0a]/90 text-neutral-400 border border-neutral-700 hover:border-neutral-300 hover:text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+          id="current-loc-label-btn"
+          type="button"
+          class="text-neutral-100 hover:text-white font-semibold cursor-pointer whitespace-nowrap shrink-0 pr-1"
         >
           ${physicalCity.name}
         </button>
-        `
-            : ''
-        }
-      `;
-
-      document.getElementById('primary-move-btn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (performance.now() - lastGlobeSelectTimestamp < 250) return;
-        startVpnBridgeTo(selectedCity);
-      });
-
-      document.getElementById('focus-physical-btn')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedLocationId = physicalLocationId;
-        if (focusCityOnGlobe) focusCityOnGlobe(physicalCity);
-        renderLocationActionBar();
-      });
-    }
-
-    document.getElementById('focus-current-btn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      selectedLocationId = currentCityId;
-      if (focusCityOnGlobe) focusCityOnGlobe(currentCity);
+      </div>
+      ${returnBtnHtml}
+    `;
+    const handleFocusLoc = () => {
+      globeSelectedCityId = null;
+      if (focusCityOnGlobe) focusCityOnGlobe(physicalCity);
       renderLocationActionBar();
-    });
+    };
+    bindInstantButton(document.getElementById('current-loc-btn'), handleFocusLoc);
+    bindInstantButton(document.getElementById('current-loc-label-btn'), handleFocusLoc);
+    attachReturnBtnHandler();
     return;
   }
 
-  // 4. Default state:
-  // - If TTY 1 or VPN unused: [LOC] City
-  // - If VPN active on TTY 2..5: [VPN] VpnCity + right-side [PhysicalCity] button
+  // 4. TTY 2..5 (VPN Terminal Slots)
+  // Determine the target city to evaluate:
+  // - If user selected a city on the globe, evaluate selectedCity.
+  // - If no city is selected and no VPN is active on this TTY, default to current physicalCity so "Plant VPN Here" is immediately available at current location!
+  const targetForVpn = selectedCity ?? (!usingVpn ? physicalCity : null);
+
+  if (targetForVpn) {
+    // 4A. Selected city is the ALREADY active VPN node on this TTY -> Unset VPN
+    if (usingVpn && targetForVpn.id === vpnLocationIds[activeTty]) {
+      bar.innerHTML = `
+        <button
+          id="unset-vpn-btn"
+          type="button"
+          class="px-2.5 py-1 bg-neutral-100 text-black font-bold border border-neutral-100 hover:bg-white transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
+        >
+          <span>[VPN]</span>
+          <span>Unset VPN (${targetForVpn.name})</span>
+        </button>
+        ${returnBtnHtml}
+      `;
+      bindInstantButton(document.getElementById('unset-vpn-btn'), () => {
+        unsetVpnForActiveTty();
+      });
+      attachReturnBtnHandler();
+      return;
+    }
+
+    // 4B. Target city is the player's current physical location -> Plant VPN Here
+    if (targetForVpn.id === physicalLocationId) {
+      const costBadge = formatVpnCostBadge(targetForVpn);
+      bar.innerHTML = `
+        <button
+          id="primary-move-btn"
+          type="button"
+          class="px-2.5 py-1 bg-neutral-100 text-black font-bold border border-neutral-100 hover:bg-white transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
+        >
+          <span>[VPN]</span>
+          <span>Plant VPN Here</span>
+          <span class="text-[10px] font-semibold text-neutral-800 tabular-nums">· ${costBadge}</span>
+        </button>
+        ${returnBtnHtml}
+      `;
+      bindInstantButton(document.getElementById('primary-move-btn'), () => {
+        startVpnBridgeTo(targetForVpn);
+      });
+      attachReturnBtnHandler();
+      return;
+    }
+
+    // 4C. Target city is a remote city that ONLY allows direct physical installation
+    if (targetForVpn.directVpnOnly) {
+      bar.innerHTML = `
+        <button
+          id="direct-only-btn"
+          type="button"
+          class="px-2.5 py-1 bg-[#121212] text-neutral-300 font-bold border border-neutral-500 hover:border-neutral-200 transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
+        >
+          <span>[VPN]</span>
+          <span>Direct Plant Only (${targetForVpn.name})</span>
+        </button>
+        ${returnBtnHtml}
+      `;
+      bindInstantButton(document.getElementById('direct-only-btn'), () => {
+        appendLog(
+          `[NET] ${targetForVpn.name} 노드는 원격 VPN 라우팅이 제한된 지역입니다. tty1에서 해당 도시로 직접 비행(Flight) 이동한 뒤 현장에서 [Plant VPN Here]로 설치하십시오.`,
+          true,
+          true
+        );
+      });
+      attachReturnBtnHandler();
+      return;
+    }
+
+    // 4D. Target city is a remote routable city -> Route to City
+    const costBadge = formatVpnCostBadge(targetForVpn);
+    bar.innerHTML = `
+      <button
+        id="primary-move-btn"
+        type="button"
+        class="px-2.5 py-1 bg-neutral-100 text-black font-bold border border-neutral-100 hover:bg-white transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
+      >
+        <span>[VPN]</span>
+        <span>Route to ${targetForVpn.name}</span>
+        <span class="text-[10px] font-semibold text-neutral-800 tabular-nums">· ${costBadge}</span>
+      </button>
+      ${returnBtnHtml}
+    `;
+    bindInstantButton(document.getElementById('primary-move-btn'), () => {
+      startVpnBridgeTo(targetForVpn);
+    });
+    attachReturnBtnHandler();
+    return;
+  }
+
+  // 5. Default state when VPN IS active on TTY 2..5 and no city is selected
   bar.innerHTML = `
-    <div class="flex items-center gap-1.5 bg-[#0a0a0a]/90 border border-neutral-600 px-2 py-1">
+    <div class="flex items-center gap-1.5 bg-[#0a0a0a]/95 border border-neutral-600 px-2 py-1">
       <button
         id="current-loc-btn"
+        type="button"
+        title="Click to manage/unset active VPN (${anchorCity.name})"
         class="px-1.5 py-0.5 bg-neutral-200 text-black font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
       >
-        ${modeBadge}
+        VPN
       </button>
       <button
         id="current-loc-label-btn"
+        type="button"
+        title="Click to manage/unset active VPN (${anchorCity.name})"
         class="text-neutral-100 hover:text-white font-semibold cursor-pointer whitespace-nowrap shrink-0 pr-1"
       >
-        ${currentCity.name}
+        ${anchorCity.name}
       </button>
     </div>
-    ${
-      usingVpn
-        ? `
-      <button
-        id="select-physical-loc-btn"
-        title="Select physical location (${physicalCity.name})"
-        class="px-2 py-1 bg-[#0a0a0a]/90 text-neutral-400 border border-neutral-700 hover:border-neutral-300 hover:text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-      >
-        ${physicalCity.name}
-      </button>
-    `
-        : ''
-    }
+    ${returnBtnHtml}
   `;
 
-  const handleSelectCurrent = (e: Event) => {
-    e.stopPropagation();
-    selectedLocationId = currentCityId;
-    if (focusCityOnGlobe) focusCityOnGlobe(currentCity);
+  const handleToggleVpnNodeSelect = () => {
+    globeSelectedCityId = anchorCity.id;
+    if (focusCityOnGlobe) focusCityOnGlobe(anchorCity);
     renderLocationActionBar();
   };
 
-  document.getElementById('current-loc-btn')?.addEventListener('click', handleSelectCurrent);
-  document.getElementById('current-loc-label-btn')?.addEventListener('click', handleSelectCurrent);
-
-  document.getElementById('select-physical-loc-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    selectedLocationId = physicalLocationId;
-    if (focusCityOnGlobe) focusCityOnGlobe(physicalCity);
-    renderLocationActionBar();
-  });
+  bindInstantButton(document.getElementById('current-loc-btn'), handleToggleVpnNodeSelect);
+  bindInstantButton(document.getElementById('current-loc-label-btn'), handleToggleVpnNodeSelect);
+  attachReturnBtnHandler();
 }
 
 function unsetVpnForActiveTty() {
   if (activeTty === 1) return;
   vpnLocationIds[activeTty] = null;
   delete activeVpnBridges[activeTty];
-  selectedLocationId = physicalLocationId;
+  globeSelectedCityId = null;
   const physicalCity = getCityById(physicalLocationId);
   if (focusCityOnGlobe) focusCityOnGlobe(physicalCity);
   requestGlobeWake?.();
@@ -1578,12 +1662,39 @@ function startFlightTo(dest: CityNode) {
   const originId = physicalLocationId;
   if (activeFlight || dest.id === originId) return;
   const origin = getCityById(originId);
+  const flightCost = getFlightUsdCost(origin, dest);
+
+  if (saveState.usdBalance < flightCost) {
+    appendLog(
+      `[SYS] 항공권 결제 자금($)이 부족합니다 (${origin.name} -> ${dest.name} 필요: $${flightCost.toFixed(2)} / 보유: $${saveState.usdBalance.toFixed(2)}).`,
+      true,
+      true
+    );
+    return;
+  }
+
+  if (flightCost > 0) {
+    saveState.usdBalance = Math.max(0, Number((saveState.usdBalance - flightCost).toFixed(2)));
+    animateBalancesTo(saveState.usdBalance, saveState.xmrBalance, 720);
+    appendLog(
+      `[$] 지출이 감지되었습니다: ${flightCost.toFixed(2)} (항공편: ${origin.name} -> ${dest.name})`,
+      false,
+      true
+    );
+    if (bootState === 'booted') {
+      syncAndPersistSaveState();
+    }
+  }
+
   const radDist = getAngularDistance(origin, dest);
   const durationMs = Math.round(1800 + (radDist / Math.PI) * 3800);
+  const camStartCity = getCurrentGlobeCameraCity ? getCurrentGlobeCameraCity() : origin;
 
+  globeSelectedCityId = null;
   activeFlight = {
     fromCity: origin,
     toCity: dest,
+    camStartCity,
     startTime: performance.now(),
     durationMs,
     progress: 0,
@@ -1595,16 +1706,53 @@ function startFlightTo(dest: CityNode) {
 
 function startVpnBridgeTo(dest: CityNode) {
   if (activeTty === 1) return;
-  if (activeVpnBridges[activeTty] || dest.id === physicalLocationId) return;
-  // VPN connection line always originates from actual physical location (LOC)
+  if (activeVpnBridges[activeTty] || vpnLocationIds[activeTty] === dest.id) return;
+
+  const isLocalPlant = dest.id === physicalLocationId;
+  if (!isLocalPlant && dest.directVpnOnly) {
+    appendLog(
+      `[NET] ${dest.name} 노드는 원격 VPN 라우팅이 제한된 지역입니다. tty1에서 해당 도시로 직접 비행(Flight) 이동한 뒤 현장에서 [Plant VPN Here]로 설치하십시오.`,
+      true,
+      true
+    );
+    return;
+  }
+
+  const xmrCost = dest.vpnXmrCost;
+  if (xmrCost > 0) {
+    if (saveState.xmrBalance < xmrCost) {
+      appendLog(
+        `[NET] XMR(#) 잔고가 부족하여 ${dest.name} VPN 노드를 연결할 수 없습니다 (필요: ${xmrCost.toFixed(4)} # / 보유: ${saveState.xmrBalance.toFixed(4)} #).`,
+        true,
+        true
+      );
+      return;
+    }
+    saveState.xmrBalance = Math.max(0, Number((saveState.xmrBalance - xmrCost).toFixed(4)));
+    animateBalancesTo(saveState.usdBalance, saveState.xmrBalance, 720);
+    appendLog(
+      `[#] 지출이 감지되었습니다: ${xmrCost.toFixed(4)} (VPN: ${dest.name})`,
+      true,
+      true
+    );
+    if (bootState === 'booted') {
+      syncAndPersistSaveState();
+    }
+  }
+
   const origin = getCityById(physicalLocationId);
   const radDist = getAngularDistance(origin, dest);
-  const durationMs = Math.round(1100 + (radDist / Math.PI) * 1900);
-  const estimatedPingMs = Math.max(12, Math.round(18 + (radDist / Math.PI) * 240));
+  const durationMs = isLocalPlant ? 850 : Math.round(1100 + (radDist / Math.PI) * 1900);
+  const estimatedPingMs = isLocalPlant
+    ? 4
+    : Math.max(12, Math.round(18 + (radDist / Math.PI) * 240));
+  const camStartCity = getCurrentGlobeCameraCity ? getCurrentGlobeCameraCity() : dest;
 
+  globeSelectedCityId = null;
   activeVpnBridges[activeTty] = {
     fromCity: origin,
     toCity: dest,
+    camStartCity,
     startTime: performance.now(),
     durationMs,
     progress: 0,
@@ -1660,10 +1808,10 @@ async function runBootSequence() {
   }
   renderLogLines(true);
 
-  // Set globe to current location & show location badge
+  // Preserve any city selected before boot, or focus active workspace location
+  globeSelectedCityId = unbootedSelectedCityId;
   unbootedSelectedCityId = null;
-  const currentCityId = getActiveWorkspaceLocationId(activeTty);
-  selectedLocationId = currentCityId;
+  const currentCityId = globeSelectedCityId ?? getActiveWorkspaceLocationId(activeTty);
   const currentCity = getCityById(currentCityId);
   if (focusCityOnGlobe) {
     focusCityOnGlobe(currentCity);
@@ -1703,6 +1851,7 @@ async function runBootSequence() {
   bootState = 'booted';
   renderBootOverlayState();
   renderLocationActionBar();
+  syncAndPersistSaveState();
   requestGlobeWake?.();
 }
 
@@ -1924,7 +2073,10 @@ function buildWorldScaffoldSummary(): string {
 async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTty: TtyId) {
   const topologyInfo = buildNetworkTopologySummary(targetTty);
   const scaffoldInfo = buildWorldScaffoldSummary();
-  const availableCitiesList = CITIES.map((c) => `${c.name}(${c.id})`).join(', ');
+  const availableCitiesList = CITIES.map(
+    (c) =>
+      `${c.name}(${c.id}${c.directVpnOnly ? ':직접설치VPN전용' : ''}, VPN:${c.vpnXmrCost > 0 ? `${c.vpnXmrCost.toFixed(4)}XMR` : 'FREE'})`
+  ).join(', ');
 
   const recentHistory = ttyLogs[targetTty]
     .filter((e) => !isTransientOrErrorLog(e.text))
@@ -2640,8 +2792,8 @@ function renderModalOnly() {
           ttyLogs[id] = saveState.ttyLogs[id].map((item) => ({ ...item }));
           ttyScrollBottomOffsets[id] = 0;
         }
-        selectedLocationId = getActiveWorkspaceLocationId(activeTty);
-        if (focusCityOnGlobe) focusCityOnGlobe(getCityById(selectedLocationId));
+        globeSelectedCityId = null;
+        if (focusCityOnGlobe) focusCityOnGlobe(getCityById(getActiveWorkspaceLocationId(activeTty)));
         animateBalancesTo(saveState.usdBalance, saveState.xmrBalance, 600);
         renderLogLines(true);
         renderLocationActionBar();
@@ -2692,7 +2844,7 @@ function renderModalOnly() {
       vpnLocationIds[id] = null;
     }
     physicalLocationId = saveState.physicalLocationId;
-    selectedLocationId = physicalLocationId;
+    globeSelectedCityId = null;
     unbootedSelectedCityId = null;
     activeTty = 1;
 
@@ -2856,6 +3008,20 @@ if (globeCanvas && globeContainer) {
     wakeGlobeLoop();
   };
 
+  getCurrentGlobeCameraCity = () => {
+    const lat = rotLat * RAD2DEG;
+    let lon = (-rotLon * RAD2DEG) % 360;
+    if (lon > 180) lon -= 360;
+    if (lon < -180) lon += 360;
+    return {
+      id: '__cam__',
+      name: 'CAM',
+      lat,
+      lon,
+      vpnXmrCost: 0,
+    };
+  };
+
   const updateZoomUI = () => {
     if (!zoomThumbEl || !zoomReadoutEl) return;
     const ratio = (zoomLevel - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM);
@@ -3014,6 +3180,11 @@ if (globeCanvas && globeContainer) {
   });
 
   const endPointerDrag = (e: PointerEvent) => {
+    const targetEl = e.target as HTMLElement | null;
+    if (targetEl && (targetEl.closest('#location-action-bar') || targetEl.closest('#zoom-axis'))) {
+      return;
+    }
+
     activeTouches.delete(e.pointerId);
     if (activeTouches.size < 2) {
       initialPinchDist = null;
@@ -3053,11 +3224,10 @@ if (globeCanvas && globeContainer) {
       } else {
         if (hitCity) {
           e.preventDefault();
-          lastGlobeSelectTimestamp = performance.now();
-          selectedLocationId = hitCity.id;
+          globeSelectedCityId = hitCity.id;
           renderLocationActionBar();
         } else {
-          selectedLocationId = getActiveWorkspaceLocationId();
+          globeSelectedCityId = null;
           renderLocationActionBar();
         }
       }
@@ -3150,6 +3320,7 @@ if (globeCanvas && globeContainer) {
         name: 'LOC',
         lat: pos.lat,
         lon: pos.lon,
+        vpnXmrCost: 0,
       };
     }
     return getCityById(physicalLocationId);
@@ -3200,7 +3371,7 @@ if (globeCanvas && globeContainer) {
       activeTty === 1 || (!isWorkspaceUsingVpn(activeTty) && !activeVpnBridges[activeTty]);
 
     if (activeFlight) {
-      const elapsed = now - activeFlight.startTime;
+      const elapsed = Math.max(0, now - activeFlight.startTime);
       const t = clamp(elapsed / activeFlight.durationMs, 0, 1);
       activeFlight.progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
@@ -3217,13 +3388,9 @@ if (globeCanvas && globeContainer) {
       if (t >= 1) {
         const arrivedCity = activeFlight.toCity;
         physicalLocationId = arrivedCity.id;
-        for (const id of [2, 3, 4, 5] as TtyId[]) {
-          if (vpnLocationIds[id] === arrivedCity.id) {
-            vpnLocationIds[id] = null;
-          }
-        }
+        // Preserve all existing VPNs even when flying through or arriving at a VPN target city
         if (activeTty === 1 || !isWorkspaceUsingVpn(activeTty)) {
-          selectedLocationId = arrivedCity.id;
+          globeSelectedCityId = null;
         }
         activeFlight = null;
         renderLocationActionBar();
@@ -3245,20 +3412,24 @@ if (globeCanvas && globeContainer) {
       vpnTransit.fromCity = livePhysicalOrigin;
 
       const prevProgress = vpnTransit.progress;
-      const elapsed = now - vpnTransit.startTime;
+      const elapsed = Math.max(0, now - vpnTransit.startTime);
       const t = clamp(elapsed / vpnTransit.durationMs, 0, 1);
       vpnTransit.progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
       if (activeTty === ttyId) {
-        const signalPos = interpolateGreatCircle(
-          livePhysicalOrigin,
+        const camPos = interpolateGreatCircle(
+          vpnTransit.camStartCity,
           vpnTransit.toCity,
           vpnTransit.progress
         );
-        targetLon = normalizeAngleDiff(-signalPos.lon * DEG2RAD, rotLon);
-        targetLat = clamp(signalPos.lat * DEG2RAD, -MAX_LAT_TILT, MAX_LAT_TILT);
+        targetLon = normalizeAngleDiff(-camPos.lon * DEG2RAD, rotLon);
+        targetLat = clamp(camPos.lat * DEG2RAD, -MAX_LAT_TILT, MAX_LAT_TILT);
 
-        if (prevProgress < 0.55 && vpnTransit.progress >= 0.55) {
+        if (
+          vpnTransit.toCity.id !== physicalLocationId &&
+          prevProgress < 0.55 &&
+          vpnTransit.progress >= 0.55
+        ) {
           const statusEl = document.getElementById('vpn-transit-status-label');
           if (statusEl) statusEl.textContent = 'Bridging';
         }
@@ -3266,10 +3437,10 @@ if (globeCanvas && globeContainer) {
 
       if (t >= 1) {
         const connectedCity = vpnTransit.toCity;
-        vpnLocationIds[ttyId] =
-          connectedCity.id === physicalLocationId ? null : connectedCity.id;
+        // Keep VPN active even if planted at the current physical location
+        vpnLocationIds[ttyId] = connectedCity.id;
         if (activeTty === ttyId) {
-          selectedLocationId = connectedCity.id;
+          globeSelectedCityId = null;
         }
         delete activeVpnBridges[ttyId];
         if (activeTty === ttyId) {
@@ -3612,7 +3783,7 @@ if (globeCanvas && globeContainer) {
       if (pz > 0.08) {
         const isCurrent = isBootedOrBooting && city.id === activeWorkspaceCityId;
         const isSelected = isBootedOrBooting
-          ? city.id === selectedLocationId
+          ? city.id === globeSelectedCityId
           : city.id === unbootedSelectedCityId;
         const alpha = clamp(0.45 + pz * 0.55, 0.45, 1);
 
@@ -3625,7 +3796,13 @@ if (globeCanvas && globeContainer) {
           gCtx.strokeStyle = '#ffffff';
           gCtx.lineWidth = 1.2;
           gCtx.strokeRect(px - 6, py - 6, 12, 12);
-        } else if (isSelected) {
+          if (activeTty !== 1 && isWorkspaceUsingVpn(activeTty)) {
+            gCtx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            gCtx.lineWidth = 0.9;
+            gCtx.strokeRect(px - 9, py - 9, 18, 18);
+          }
+        }
+        if (isSelected && !isCurrent) {
           gCtx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
           gCtx.lineWidth = 1;
           gCtx.beginPath();
