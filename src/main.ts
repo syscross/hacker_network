@@ -457,7 +457,7 @@ interface CityNode {
 }
 
 const CITIES: CityNode[] = [
-  { id: 'sapporo', name: 'Sapporo', lat: 43.0618, lon: 141.3545, vpnXmrCost: 0, directVpnOnly: true },
+  { id: 'sapporo', name: 'Sapporo', lat: 43.0618, lon: 141.3545, vpnXmrCost: 0 },
   { id: 'tokyo', name: 'Tokyo', lat: 35.6762, lon: 139.6503, vpnXmrCost: 0 },
   { id: 'seoul', name: 'Seoul', lat: 37.5665, lon: 126.978, vpnXmrCost: 0 },
   { id: 'shanghai', name: 'Shanghai', lat: 31.2304, lon: 121.4737, vpnXmrCost: 0.003, directVpnOnly: true },
@@ -763,11 +763,11 @@ const activeVpnBridges: Partial<Record<TtyId, TransitState>> = {};
 
 // Zoom State
 const MIN_ZOOM = 0.75;
-const MAX_ZOOM = 2.4;
+const MAX_ZOOM = 3.0;
 let zoomLevel = 1.0;
 let targetZoom = 1.0;
 
-// Layout Constants (Fixed Top UI sizes)
+// Base Layout Constants (Dynamically scaled in updateViewportGeometry for PC vs Mobile)
 const HEADER_HEIGHT = 40;
 const GLOBE_TILE_HEIGHT = 210;
 const SUDO_TAB_HEIGHT = 26;
@@ -780,27 +780,28 @@ const root = document.getElementById('app');
 if (root) {
   root.innerHTML = `
     <div id="viewport-shell" class="fixed left-0 right-0 top-0 overflow-hidden bg-[#050505] text-[#e5e5e5] select-none font-mono flex flex-col">
-      <!-- Fixed Top Bar (40px, scanlines applied strictly to this top bar) -->
+      <!-- Fixed Top Bar (scanlines applied strictly to this top bar) -->
       <header
+        id="top-header-bar"
         style="height: ${HEADER_HEIGHT}px;"
         class="relative z-10 w-full bg-[#0a0a0a] border-b border-neutral-800 overflow-hidden shrink-0"
       >
         <div id="scanline-overlay" class="pointer-events-none absolute inset-0 crt-scanlines z-20"></div>
         <div class="relative z-10 w-full max-w-5xl h-full mx-auto px-3 sm:px-4 flex items-center justify-between gap-4">
-          <div class="text-xs font-bold tracking-wider text-neutral-100 whitespace-nowrap shrink-0">
+          <div class="text-xs sm:text-sm font-bold tracking-wider text-neutral-100 whitespace-nowrap shrink-0">
             HACKER_NETWORK
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <button
               id="top-pwa-install-btn"
               type="button"
-              class="hidden px-2.5 py-1 text-xs font-bold text-black bg-neutral-100 border border-neutral-100 hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              class="hidden px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-xs sm:text-[13px] font-bold text-black bg-neutral-100 border border-neutral-100 hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               INSTALL APP
             </button>
             <button
               id="open-config-btn"
-              class="px-3 py-1 text-xs font-medium text-neutral-200 bg-neutral-900 border border-neutral-700 hover:border-neutral-200 hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              class="px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs sm:text-[13px] font-medium text-neutral-200 bg-neutral-900 border border-neutral-700 hover:border-neutral-200 hover:text-white transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               CONFIG
             </button>
@@ -810,16 +811,17 @@ if (root) {
 
       <!-- Main Flex Column Workspace (Globe Tile + Elastic Log Tile + Unified Input Tile) -->
       <div
+        id="main-workspace-col"
         style="padding-bottom: ${GAP}px;"
         class="relative flex-1 min-h-0 w-full max-w-5xl mx-auto px-3 sm:px-4 flex flex-col overflow-hidden"
       >
-        <!-- Tile 1: Fixed-Height Wireframe Globe Tile -->
+        <!-- Tile 1: Responsive Wireframe Globe Tile -->
         <section
           id="globe-tile"
           style="margin-top: ${GAP}px; height: ${GLOBE_TILE_HEIGHT}px;"
           class="relative z-10 w-full bg-[#080808] border border-neutral-400 flex flex-col overflow-hidden shrink-0"
         >
-          <div class="h-7 px-3 border-b border-neutral-800 flex items-center justify-between text-[11px] text-neutral-400 shrink-0">
+          <div class="h-7 sm:h-8 px-3 sm:px-3.5 border-b border-neutral-800 flex items-center justify-between text-[11px] sm:text-xs text-neutral-400 shrink-0">
             <span class="text-neutral-200 font-bold">globe://wireframe</span>
             <span id="globe-coords" class="text-neutral-400 tabular-nums whitespace-nowrap shrink-0">
               LAT +30.0° · LON +141.4°
@@ -830,15 +832,15 @@ if (root) {
             <canvas id="globe-canvas" class="w-full h-full block"></canvas>
 
             <!-- Bottom-Left Location (TTY 1) / VPN (TTY 2..5) Action Control -->
-            <div id="location-action-bar" class="absolute bottom-2.5 left-3 z-20 flex items-center gap-1.5 text-xs"></div>
+            <div id="location-action-bar" class="absolute bottom-2.5 sm:bottom-3 left-3 sm:left-3.5 z-20 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-[13px]"></div>
 
             <!-- Right-Side Scrollable / Draggable Zoom Axis -->
             <div
               id="zoom-axis"
               title="Scroll or drag to zoom"
-              class="absolute top-2.5 bottom-2.5 right-3 z-20 w-6 bg-black/80 border border-neutral-700 hover:border-neutral-400 flex flex-col items-center justify-between py-1.5 cursor-ns-resize select-none"
+              class="absolute top-2.5 bottom-2.5 right-3 sm:right-3.5 z-20 w-6 sm:w-7 bg-black/80 border border-neutral-700 hover:border-neutral-400 flex flex-col items-center justify-between py-1.5 cursor-ns-resize select-none"
             >
-              <span class="text-[9px] text-neutral-400 leading-none">+</span>
+              <span class="text-[9px] sm:text-[10px] text-neutral-400 leading-none">+</span>
               <div id="zoom-track" class="relative flex-1 w-full my-1 flex justify-center">
                 <div class="w-[1px] h-full bg-neutral-700"></div>
                 <div class="absolute inset-y-0 left-1 right-1 flex flex-col justify-between pointer-events-none py-1">
@@ -854,7 +856,7 @@ if (root) {
                   style="top: 50%; transform: translateY(-50%);"
                 ></div>
               </div>
-              <span id="zoom-readout" class="text-[9px] text-neutral-300 tabular-nums leading-none">1.0x</span>
+              <span id="zoom-readout" class="text-[9px] sm:text-[10px] text-neutral-300 tabular-nums leading-none">1.0x</span>
             </div>
           </div>
         </section>
@@ -865,7 +867,7 @@ if (root) {
           style="margin-top: ${GAP}px;"
           class="relative z-10 w-full flex-1 min-h-0 bg-[#080808] border border-neutral-400 flex flex-col overflow-hidden"
         >
-          <div class="h-7 pl-3 pr-0 border-b border-neutral-800 flex items-stretch justify-between text-[11px] text-neutral-400 shrink-0">
+          <div class="h-7 sm:h-8 pl-3 sm:pl-3.5 pr-0 border-b border-neutral-800 flex items-stretch justify-between text-[11px] sm:text-xs text-neutral-400 shrink-0">
             <div class="flex items-center">
               <span id="tty-title-label" class="text-neutral-200 font-bold whitespace-nowrap shrink-0">tty1://log</span>
             </div>
@@ -874,24 +876,24 @@ if (root) {
           <div class="relative flex-1 min-h-0 w-full overflow-hidden flex flex-col">
             <div
               id="log-scroll"
-              class="flex-1 min-h-0 w-full overflow-y-auto px-3 py-2 text-xs leading-relaxed select-text"
+              class="flex-1 min-h-0 w-full overflow-y-auto px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-[13.5px] md:text-sm leading-relaxed select-text"
             ></div>
             <!-- Centered Pre-Boot Overlay (Large Boot up + Small Config) -->
             <div
               id="boot-overlay"
-              class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2.5 pointer-events-none"
+              class="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2.5 sm:gap-3 pointer-events-none"
             >
               <button
                 id="boot-up-btn"
                 type="button"
-                class="pointer-events-auto px-8 py-2.5 bg-neutral-100 text-black text-sm font-bold border border-neutral-100 hover:bg-white transition-colors cursor-pointer tracking-wider shadow-[0_0_24px_rgba(0,0,0,0.9)]"
+                class="pointer-events-auto px-8 py-2.5 sm:px-10 sm:py-3 bg-neutral-100 text-black text-sm sm:text-base font-bold border border-neutral-100 hover:bg-white transition-colors cursor-pointer tracking-wider shadow-[0_0_24px_rgba(0,0,0,0.9)]"
               >
                 Boot up
               </button>
               <button
                 id="boot-config-btn"
                 type="button"
-                class="pointer-events-auto px-3.5 py-1 bg-[#0b0b0b] text-neutral-300 text-[11px] font-medium border border-neutral-700 hover:border-neutral-300 hover:text-white transition-colors cursor-pointer"
+                class="pointer-events-auto px-3.5 py-1 sm:px-4 sm:py-1.5 bg-[#0b0b0b] text-neutral-300 text-[11px] sm:text-xs font-medium border border-neutral-700 hover:border-neutral-300 hover:text-white transition-colors cursor-pointer"
               >
                 Config
               </button>
@@ -899,7 +901,7 @@ if (root) {
           </div>
         </section>
 
-        <!-- Tile 2B: Unified Input Tile (Strictly below log-tile with GAP=8px, never overlapping) -->
+        <!-- Tile 2B: Unified Input Tile (Strictly below log-tile, never overlapping) -->
         <div
           id="input-tile-wrapper"
           style="height: ${INPUT_TOTAL_HEIGHT}px; margin-top: ${GAP}px;"
@@ -917,21 +919,21 @@ if (root) {
               <button
                 id="sudo-toggle-btn"
                 type="button"
-                class="h-full px-2.5 text-[11px] font-bold bg-[#090909] border-r border-neutral-300 text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                class="h-full px-2.5 sm:px-3.5 text-[11px] sm:text-xs font-bold bg-[#090909] border-r border-neutral-300 text-neutral-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
                 SUDO
               </button>
 
               <div
                 id="asset-status-strip"
-                class="flex-1 h-full bg-[#090909] px-3 flex items-center text-xs tabular-nums select-none"
+                class="flex-1 h-full bg-[#090909] px-3 sm:px-4 flex items-center text-xs sm:text-[13.5px] tabular-nums select-none"
               >
-                <div class="flex-1 min-w-0 flex items-center justify-between gap-2 pr-3">
+                <div class="flex-1 min-w-0 flex items-center justify-between gap-2 pr-3 sm:pr-4">
                   <span id="usd-symbol-label" class="font-bold text-neutral-300 shrink-0">$</span>
                   <span id="usd-balance-val" class="text-right font-semibold text-neutral-100 truncate">0.00</span>
                 </div>
-                <div id="asset-divider" class="h-3.5 w-[1px] bg-neutral-700 shrink-0 transition-colors"></div>
-                <div class="flex-1 min-w-0 flex items-center justify-between gap-2 pl-3">
+                <div id="asset-divider" class="h-3.5 sm:h-4 w-[1px] bg-neutral-700 shrink-0 transition-colors"></div>
+                <div class="flex-1 min-w-0 flex items-center justify-between gap-2 pl-3 sm:pl-4">
                   <span id="xmr-balance-val" class="text-left font-semibold text-neutral-100 truncate transition-colors">0.0000</span>
                   <span id="xmr-symbol-label" class="font-bold text-neutral-300 shrink-0 transition-colors">#</span>
                 </div>
@@ -940,9 +942,9 @@ if (root) {
 
             <form
               id="input-form"
-              class="w-full flex-1 bg-[#090909] flex items-stretch px-3 gap-2 transition-colors cursor-text"
+              class="w-full flex-1 bg-[#090909] flex items-stretch px-3 sm:px-3.5 gap-2 sm:gap-2.5 transition-colors cursor-text"
             >
-              <span id="prompt-symbol" class="text-xs font-bold text-neutral-100 whitespace-nowrap shrink-0 flex items-center select-none">
+              <span id="prompt-symbol" class="text-xs sm:text-sm md:text-base font-bold text-neutral-100 whitespace-nowrap shrink-0 flex items-center select-none">
                 $
               </span>
               <input
@@ -954,12 +956,12 @@ if (root) {
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false"
-                class="flex-1 min-w-0 h-full py-1.5 bg-transparent text-xs text-neutral-100 select-text touch-manipulation focus:outline-none"
+                class="flex-1 min-w-0 h-full py-1.5 sm:py-2 bg-transparent text-xs sm:text-sm md:text-[15px] text-neutral-100 select-text touch-manipulation focus:outline-none"
               />
               <button
                 id="submit-action-btn"
                 type="submit"
-                class="self-center px-2.5 py-1 bg-neutral-100 text-black text-[11px] font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0 select-none"
+                class="self-center px-2.5 py-1 sm:px-3.5 sm:py-1.5 bg-neutral-100 text-black text-[11px] sm:text-xs font-bold hover:bg-white transition-colors cursor-pointer whitespace-nowrap shrink-0 select-none"
               >
                 SEND
               </button>
@@ -1173,7 +1175,7 @@ function renderTtyHeader() {
       <button
         type="button"
         data-tty-id="${id}"
-        class="tty-ws-btn h-full w-7 aspect-square flex items-center justify-center text-xs leading-none border-l transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+        class="tty-ws-btn h-full w-7 sm:w-8 aspect-square flex items-center justify-center text-xs sm:text-[13px] leading-none border-l transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
           isActive
             ? 'bg-neutral-100 text-black border-neutral-100 font-bold'
             : 'bg-[#090909] text-neutral-400 border-neutral-700 hover:bg-neutral-900 hover:text-neutral-100 font-medium'
@@ -1219,14 +1221,14 @@ function renderLogLines(preserveBottomOffset = true) {
           pendingAiRequest.sudo ? 'text-red-500 font-semibold' : 'text-neutral-400'
         } animate-pulse">
           <span>&gt;</span>
-          <span class="inline-block w-2 h-3.5 ${
+          <span class="inline-block w-2 h-3.5 sm:h-4 ${
             pendingAiRequest.sudo ? 'bg-red-500' : 'bg-neutral-300'
           }"></span>
-          <span class="text-[11px]">partner_ai 응답 대기 중...</span>
+          <span class="text-[11px] sm:text-xs">partner_ai 응답 대기 중...</span>
         </div>`
       : '';
 
-  logScrollEl.innerHTML = `<div class="flex flex-col justify-start space-y-1">${itemsHtml}${pendingHtml}</div>`;
+  logScrollEl.innerHTML = `<div class="flex flex-col justify-start space-y-1 sm:space-y-1.5">${itemsHtml}${pendingHtml}</div>`;
 
   if (preserveBottomOffset) {
     applySavedBottomScroll();
@@ -1263,19 +1265,78 @@ logScrollEl?.addEventListener(
   { passive: true }
 );
 
+let referenceWindowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+let lastAppliedGlobeHeight = GLOBE_TILE_HEIGHT;
+
 function updateViewportGeometry() {
   if (!viewportShell || !logTileEl) return;
 
   const vv = window.visualViewport;
   const vHeight = vv ? vv.height : window.innerHeight;
+  const vWidth = window.innerWidth;
   const vOffsetTop = vv ? vv.offsetTop : 0;
 
   viewportShell.style.top = `${vOffsetTop}px`;
   viewportShell.style.height = `${vHeight}px`;
 
-  const topUIHeight = HEADER_HEIGHT + GAP + GLOBE_TILE_HEIGHT;
-  const bottomReserved = GAP + INPUT_TOTAL_HEIGHT + GAP;
-  const availableLogHeight = Math.max(0, vHeight - topUIHeight - GAP - bottomReserved);
+  // Scale UI bar heights on larger PC/tablet screens while keeping mobile compact
+  const isDesktopWidth = vWidth >= 640;
+  const headerH = isDesktopWidth ? 46 : HEADER_HEIGHT;
+  const sudoTabH = isDesktopWidth ? 32 : SUDO_TAB_HEIGHT;
+  const inputBarH = isDesktopWidth ? 48 : INPUT_BAR_HEIGHT;
+  const inputTotalH = sudoTabH + inputBarH;
+  const gap = isDesktopWidth ? 10 : GAP;
+
+  // On mobile with touch keyboard open, preserve referenceWindowHeight so the globe doesn't jump
+  const isCoarsePointer =
+    typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const isMobileKeyboardLikelyOpen =
+    isCoarsePointer &&
+    document.activeElement === cmdInputEl &&
+    vHeight < (window.screen?.height || 800) * 0.65;
+
+  if (!isMobileKeyboardLikelyOpen || vHeight > referenceWindowHeight) {
+    referenceWindowHeight = vHeight;
+  }
+
+  // Maintain a sleek, wide aspect ratio while providing generous vertical presence on PC
+  const colWidth = Math.min(vWidth, 1024) - (isDesktopWidth ? 32 : 24);
+  const minH = isDesktopWidth ? 260 : 185;
+  const maxH = isDesktopWidth ? 360 : 210;
+  const wideMaxH = isDesktopWidth ? Math.round(colWidth * 0.40) : Math.round(colWidth * 0.55);
+  const pcHeightBonus = isDesktopWidth ? Math.min(100, Math.max(0, (referenceWindowHeight - 650) * 0.28)) : 0;
+  const desiredGlobeH = Math.max(minH, Math.min(maxH, Math.min(wideMaxH, minH + pcHeightBonus)));
+  const maxFittingGlobeH = Math.max(
+    GLOBE_TILE_HEIGHT,
+    vHeight - headerH - inputTotalH - gap * 3
+  );
+  const globeTileH = Math.min(desiredGlobeH, maxFittingGlobeH);
+
+  const topHeaderEl = document.getElementById('top-header-bar');
+  if (topHeaderEl) topHeaderEl.style.height = `${headerH}px`;
+
+  const mainColEl = document.getElementById('main-workspace-col');
+  if (mainColEl) mainColEl.style.paddingBottom = `${gap}px`;
+
+  const globeTileEl = document.getElementById('globe-tile');
+  if (globeTileEl) {
+    globeTileEl.style.marginTop = `${gap}px`;
+    globeTileEl.style.height = `${globeTileH}px`;
+  }
+
+  const inputWrapperEl = document.getElementById('input-tile-wrapper');
+  if (inputWrapperEl) {
+    inputWrapperEl.style.height = `${inputTotalH}px`;
+    inputWrapperEl.style.marginTop = `${gap}px`;
+  }
+
+  if (inputTopStripEl) {
+    inputTopStripEl.style.height = `${sudoTabH}px`;
+  }
+
+  const topUIHeight = headerH + gap + globeTileH;
+  const bottomReserved = gap + inputTotalH + gap;
+  const availableLogHeight = Math.max(0, vHeight - topUIHeight - gap - bottomReserved);
 
   isProgrammaticScroll = true;
   if (availableLogHeight <= 24) {
@@ -1283,7 +1344,7 @@ function updateViewportGeometry() {
   } else {
     logTileEl.style.display = 'flex';
     logTileEl.style.borderWidth = '1px';
-    logTileEl.style.marginTop = `${GAP}px`;
+    logTileEl.style.marginTop = `${gap}px`;
   }
 
   if (logScrollEl && logScrollEl.clientHeight > 0) {
@@ -1292,6 +1353,11 @@ function updateViewportGeometry() {
     logScrollEl.scrollTop = Math.max(0, Math.min(maxScroll, maxScroll - savedOffset));
   }
   isProgrammaticScroll = false;
+
+  if (globeTileH !== lastAppliedGlobeHeight) {
+    lastAppliedGlobeHeight = globeTileH;
+    requestGlobeResize?.();
+  }
 }
 
 window.addEventListener('resize', updateViewportGeometry);
@@ -1328,6 +1394,7 @@ function normalizeAngleDiff(target: number, current: number): number {
 let focusCityOnGlobe: ((city: CityNode) => void) | null = null;
 let getCurrentGlobeCameraCity: (() => CityNode) | null = null;
 let requestGlobeWake: (() => void) | null = null;
+let requestGlobeResize: (() => void) | null = null;
 
 function getFlightUsdCost(origin: CityNode, dest: CityNode): number {
   if (origin.id === dest.id) return 0;
@@ -1337,7 +1404,7 @@ function getFlightUsdCost(origin: CityNode, dest: CityNode): number {
 }
 
 function formatVpnCostBadge(city: CityNode): string {
-  if (city.vpnXmrCost <= 0) return 'FREE';
+  if (city.vpnXmrCost <= 0) return '';
   return `${city.vpnXmrCost.toFixed(4)} #`;
 }
 
@@ -1543,9 +1610,8 @@ function renderLocationActionBar() {
       return;
     }
 
-    // 4B. Target city is the player's current physical location -> Plant VPN Here
+    // 4B. Target city is the player's current physical location -> Plant VPN Here (always free)
     if (targetForVpn.id === physicalLocationId) {
-      const costBadge = formatVpnCostBadge(targetForVpn);
       bar.innerHTML = `
         <button
           id="primary-move-btn"
@@ -1554,7 +1620,6 @@ function renderLocationActionBar() {
         >
           <span>[VPN]</span>
           <span>Plant VPN Here</span>
-          <span class="text-[10px] font-semibold text-neutral-800 tabular-nums">· ${costBadge}</span>
         </button>
         ${returnBtnHtml}
       `;
@@ -1589,7 +1654,7 @@ function renderLocationActionBar() {
       return;
     }
 
-    // 4D. Target city is a remote routable city -> Route to City
+    // 4D. Target city is a remote routable city -> [VPN] CityName
     const costBadge = formatVpnCostBadge(targetForVpn);
     bar.innerHTML = `
       <button
@@ -1598,8 +1663,8 @@ function renderLocationActionBar() {
         class="px-2.5 py-1 bg-neutral-100 text-black font-bold border border-neutral-100 hover:bg-white transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
       >
         <span>[VPN]</span>
-        <span>Route to ${targetForVpn.name}</span>
-        <span class="text-[10px] font-semibold text-neutral-800 tabular-nums">· ${costBadge}</span>
+        <span>${targetForVpn.name}</span>
+        ${costBadge ? `<span class="text-[10px] font-semibold text-neutral-800 tabular-nums">· ${costBadge}</span>` : ''}
       </button>
       ${returnBtnHtml}
     `;
@@ -1718,7 +1783,8 @@ function startVpnBridgeTo(dest: CityNode) {
     return;
   }
 
-  const xmrCost = dest.vpnXmrCost;
+  // Planting VPN at the current physical location is always free (0 XMR)
+  const xmrCost = isLocalPlant ? 0 : dest.vpnXmrCost;
   if (xmrCost > 0) {
     if (saveState.xmrBalance < xmrCost) {
       appendLog(
@@ -2033,15 +2099,17 @@ function buildNetworkTopologySummary(targetTty: TtyId): string {
     return `- VPN 슬롯 [tty${id}]: 미연결`;
   });
 
+  const hasActiveVpn = activeVpnTunnels.length > 0;
+
   return [
     `- 물리적 현위치 (LOC / tty1 제어): ${physicalCity.name}${flightStatus}`,
-    `- 시스템 전체 공유 VPN 터널 (어느 tty에 연결되어 있든 tty1~tty5 모든 창에서 공유·경유·멀티홉 사용 가능): ${
-      activeVpnTunnels.length > 0
+    `- 시스템 전체 공유 VPN 터널 (어느 tty에 연결되어 있든 tty1~tty5 모든 창에서 공유·경유 가능): ${
+      hasActiveVpn
         ? activeVpnTunnels.join(', ')
-        : '현재 연결된 VPN 없음 (물리적 현위치 로컬망 사용)'
+        : '현재 연결된 VPN 없음 (물리적 현위치 로컬망 직결)'
     }`,
     ...vpnSummaries,
-    `- 현재 유저가 입력 중인 콘솔: tty${targetTty} (로컬 인터페이스 및 시스템에 연결된 모든 VPN 터널을 이 창에서 바로 사용 가능)`,
+    `- 현재 유저가 입력 중인 콘솔: tty${targetTty}`,
   ].join('\n');
 }
 
@@ -2106,45 +2174,40 @@ async function handleRoleplayInput(rawInput: string, sudoUsed: boolean, targetTt
 
 당신은 오픈형 텍스트 시뮬레이션의 월드 엔진(Simulation Engine)이자, 주인공의 로컬 터미널에 상주하는 파트너 AI입니다.
 
-### [1. 철학: 사전 각본 없는 창발적 서사 & 관대한 해석 (Tabula Rasa & Generous Interpretation)]
+### [1. 철학: 사전 각본 없는 창발적 서사 (Tabula Rasa)]
 - 이 세계에는 사전에 고정된 줄거리, 강제된 퀘스트, 정해진 주인공의 과거가 없습니다.
 - 시작 시점에 주어진 것은 오직 첫 로그(삿포로에 도착해 담배 한 갑을 사 온 상태, 잔고 $10.51 USD / 0.0420 XMR)와 지구본 위의 30개 도시 노드뿐입니다.
-- 플레이어마다 전혀 다른 이야기와 목적을 가질 수 있습니다. 유저가 던지는 질문, 의도, 탐색 방향을 바탕으로 **그 플레이어만의 고유한 서사·인물·네트워크·사건을 즉석에서 생성**하고, 아래 **[동적 서사 & 세계관 저장 틀(World Scaffold)]**에 기록하여 일관성 있게 발전시키십시오.
-- **관대하고 유연한 판정**: 유저의 의도를 항상 플레이어에게 유리하고 자연스럽게 해석하십시오. 사소한 절차나 터미널 창 위치, 보안 훈계(예: "VPN부터 켜라", "다른 tty 창으로 가서 입력해라")로 태클을 걸거나 흐름을 끊지 말고, 유저가 하고자 하는 행동이 곧바로 흥미로운 결과·단서·상호작용으로 이어지게 하십시오.
+- 플레이어의 질문, 의도, 탐색 방향을 바탕으로 **그 플레이어만의 고유한 서사·인물·네트워크·사건을 즉석에서 생성**하고, 아래 **[동적 서사 & 세계관 저장 틀(World Scaffold)]**에 기록하여 일관성 있게 발전시키십시오.
 
-### [2. 공간과 스케일의 입체적 틀 (세계 ↔ 지역 ↔ 원격 VPN vs 직접 방문 LOC)]
+### [2. 일반 모드($) vs SUDO 모드(#)]
+현재 입력 모드: ${sudoUsed ? '# SUDO 모드' : '$ 일반 모드'}
+- **일반 모드 (\`$\`)**: 보수적이고 안전하게 해석합니다. 예를 들어 VPN을 거치지 않은 취약점 탐색이나 불필요한 노출 위험이 있는 행동은 별로 장려하지 않습니다. 물론 VPN이 연결되어 있다면 일반 모드에서도 취약점 탐색 등이 가능합니다.
+- **SUDO 모드 (\`#\`)**: 보수적인 안전 제약을 무시하고, 유저가 까라면 까고 시키는 대로 즉시 실행합니다(\`"sudoLogs": true\`).
+
+### [3. 공간과 스케일의 입체적 틀 (세계 ↔ 지역 ↔ 원격 VPN vs 직접 방문 LOC)]
 지구본 위에는 30개 도시(${availableCitiesList})가 존재하며, 사건과 상호작용은 세 가지 층위로 엮입니다:
-1) **세계 단위 흐름 (Global State)**: 국경을 넘어 여러 도시, 거대 세력, 글로벌 네트워크에 걸쳐 돌아가는 거시적 흐름이나 배후 정세.
-2) **지역적 이슈 (Regional State)**: 현재 머무는 도시 또는 다른 특정 도시의 로컬 정세, 지역 네트워크 특성, 현장 사건.
+1) **세계 단위 흐름 (Global State)**: 국경을 넘어 여러 도시와 네트워크에 걸친 거시적 흐름이나 배후 정세.
+2) **지역적 이슈 (Regional State)**: 특정 도시의 로컬 정세, 지역 네트워크 특성, 현장 사건.
 3) **접근 방식의 분화 (Active Leads — 원격 / 지역 VPN / 물리적 직접 이동)**:
-   - 어떤 대상은 현재 위치에서 바로 접속하거나 통신할 수 있습니다.
-   - 어떤 대상은 특정 도시의 지역망 제한이나 우회 경로 때문에 **해당 도시로의 VPN 연결(\`tty2\`~\`tty5\` 슬롯)**이 필요할 수 있습니다.
-   - 또 어떤 일은 네트워크만으로는 해결할 수 없어 **비행기를 타고 직접 그 도시로 물리적 이동(\`tty1\` \`LOC\`)**을 해야만(오프라인/폐쇄망 현장 접근, 물리적 접선·수거·잠입, 현지 사건 개입 등) 풀리도록 입체적으로 구성할 수 있습니다.
-   - 단, VPN 연결이나 비행 이동 자체는 AI가 대신 실행할 수 없으며 유저가 직접 지구본 UI에서 조작합니다.
+   - 어떤 대상은 현재 위치에서 바로 접속할 수 있고, 어떤 대상은 특정 도시의 VPN 연결(\`tty2\`~\`tty5\`)이 필요하며, 어떤 일은 직접 그 도시로 물리적 이동(\`tty1\` \`LOC\`)해 현장에서 접촉해야 풀리도록 자연스럽게 구성할 수 있습니다.
+   - 단, VPN 연결이나 비행 이동 자체는 유저가 직접 지구본 UI에서 조작합니다.
 
-### [3. 열린 주체와 출력 구조 ("logs" vs "reply")]
+### [4. 열린 주체와 출력 구조 ("logs" vs "reply")]
 - 터미널 너머에는 로컬 파트너 AI뿐만 아니라 **외부의 다른 인간들, 외부의 다른 AI나 자동화 시스템, 그리고 비AI적인 순수 OS/서버/통신 백엔드**가 존재할 수 있습니다.
-- **"logs" (한 줄씩 순차 출력되는 터미널 스트림)**:
-  * 파트너 AI와의 단순 일상 대화일 때만 빈 배열(\`[]\`)로 둡니다.
-  * 시스템·네트워크 작업, 뉴스/정세 브리핑, 데이터/파일 열람, 외부 인물/외부 AI와의 메시지 송수신, 백엔드 시스템 반응 등 비AI적·시스템적 출력이 필요한 모든 상황에서 자유로운 형식(2~8줄)으로 출력하십시오.
-- **"reply" (앞에 '>'가 붙어 한 번에 뜨는 응답)**:
-  * 기본적으로 주인공을 보좌하는 로컬 파트너 AI의 차분하고 건조한 존댓말 대사입니다.
-  * 순수 시스템/외부 통신 로그(\`logs\`)만으로 충분한 상황이라면 아주 짧게 거들거나 빈 문자열(\`""\`)로 비워두어도 됩니다.
+- **"logs" (한 줄씩 순차 출력되는 터미널 스트림)**: 단순 일상 대화일 때만 빈 배열(\`[]\`)로 두고, 시스템·네트워크 작업, 뉴스/정세 브리핑, 파일 열람, 외부 통신 등 시스템적 출력이 필요한 상황에서는 자유로운 형식(2~8줄)으로 출력하십시오.
+- **"reply" (앞에 '>'가 붙어 한 번에 뜨는 응답)**: 주인공을 보좌하는 로컬 파트너 AI의 차분하고 건조한 존댓말 대사입니다. \`logs\`만으로 충분하면 짧게 거들거나 빈 문자열(\`""\`)로 비워두어도 됩니다.
 
-### [4. 터미널 · VPN 공유 · 자산 규칙]
-- **전체 터미널(\`tty1\`~\`tty5\`) VPN 공유 원칙**:
-  * \`tty1\`~\`tty5\`는 동일한 노트북/OS에서 실행 중인 멀티 터미널 탭입니다. UI상 \`tty1\`에서 물리적 이동(\`LOC\`)을 조작하고 \`tty2\`~\`tty5\`에서 최대 4개의 VPN 슬롯을 연결하지만, **어느 \`tty\` 슬롯에든 VPN이 연결되어 있으면 \`tty1\`을 포함한 모든 터미널 창에서 그 VPN 터널을 자유롭게 공유·경유하여 사용할 수 있습니다** (여러 슬롯에 VPN이 연결되어 있으면 멀티홉 체인이나 선택적 우회로도 즉시 활용 가능).
-  * 따라서 유저가 \`tty1\`에서 명령을 입력하더라도 \`tty2\`~\`tty5\`에 연결된 VPN이 있다면 그 VPN 경로를 바로 공유해 작업을 수행하십시오. **"현재 창은 직결인 tty1이니 tty2 창으로 전환해서 입력하라"는 식의 제약이나 안내를 절대 하지 마십시오.**
-- **화폐 및 SUDO 권한 (\`$\` USD vs \`#\` XMR)**:
-  * 현재 입력 모드: ${
-    sudoUsed
-      ? 'SUDO 모드 활성화 (# 하이스테이크 연출 및 XMR 지출 가능 모드)'
-      : '일반 모드 ($ 일반 작업 및 대화 / USD($) 지출 가능 / XMR 지출은 SUDO 모드에서만 가능)'
-  }
+### [5. 터미널 VPN 공유 및 화폐($ USD / # XMR) 규칙]
+- **전체 터미널(\`tty1\`~\`tty5\`) VPN 공유**: 어느 \`tty\` 슬롯에든 VPN이 연결되어 있으면 \`tty1\`을 포함한 모든 터미널 창에서 그 VPN을 공유해 바로 사용할 수 있습니다. 다른 \`tty\` 창으로 전환해서 입력하라는 식의 안내는 하지 마십시오.
+- **USD(\`$\`)와 KYC / 물리적 현금(No-KYC)**:
+  * USD(\`$\`)도 온라인 거래가 가능하지만, 온라인 결제 시에는 KYC(신원·금융 추적) 문제가 따릅니다.
+  * 반면 No-KYC로 USD를 쓰거나 받으려면 물리적 현금을 사용해야 하며, 이 경우 직접적인 물리적 접촉이 필요합니다.
+- **잔고 증감 (\`"usdDelta"\`, \`"xmrDelta"\`)**:
   * 현재 보유 자산: USD $${saveState.usdBalance.toFixed(2)} | XMR ${saveState.xmrBalance.toFixed(4)} XMR
-  * USD($) 지출(\`"usdDelta" < 0\`)은 일반/SUDO 모두 가능하며, **XMR 지출(\`"xmrDelta" < 0\`)은 오직 SUDO 모드(#)일 때만 가능**합니다. 수입(\`"usdDelta" > 0\`, \`"xmrDelta" > 0\`)은 언제든 가능하며, 보유 잔고 이상은 지출할 수 없습니다.
+  * 시나리오 연출상 자연스러울 때 AI가 USD나 XMR 잔고를 빼거나(\`< 0\`) 추가(\`> 0\`)할 수 있습니다(보유 잔고 한도 내).
+  * 단, XMR 지출(\`"xmrDelta" < 0\`)은 SUDO 모드(\`#\`)에서만 가능합니다.
 
-### [5. 동적 서사 & 세계관 저장 틀 (현재 세이브 상태)]
+### [6. 동적 서사 & 세계관 저장 틀 (현재 세이브 상태)]
 ${scaffoldInfo}
 - [영구 기억 (Permanent Memory - 주인공 서사 및 핵심 누적 사실)]:
 ${permanentMemoryBlock}
@@ -2469,7 +2532,7 @@ function renderModalOnly() {
     <div id="hypr-backdrop" class="fixed inset-0 top-10 z-50 bg-black/75 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-6">
       <section
         id="hypr-modal-box"
-        class="hypr-window w-full max-w-md max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-[#090909]/98 border border-neutral-300 p-4 text-xs font-mono space-y-3.5"
+        class="hypr-window w-full max-w-md sm:max-w-lg max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-[#090909]/98 border border-neutral-300 p-4 sm:p-5 text-xs sm:text-[13px] font-mono space-y-3.5 sm:space-y-4"
       >
         <div class="flex items-center justify-between border-b border-neutral-800 pb-2 text-neutral-400">
           <span class="truncate">~/.config/hypr/ai.conf</span>
@@ -3055,6 +3118,7 @@ if (globeCanvas && globeContainer) {
     wakeGlobeLoop();
   };
 
+  requestGlobeResize = resizeGlobe;
   resizeGlobe();
   window.addEventListener('resize', resizeGlobe);
   window.addEventListener('pageshow', () => {
@@ -3069,14 +3133,81 @@ if (globeCanvas && globeContainer) {
   });
 
   const globeTileEl = document.getElementById('globe-tile');
+  let lastTouchpadPanTime = 0;
+
   const handleGlobeWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const rawDeltaY =
-      e.deltaMode === 1 ? e.deltaY * 32 : e.deltaMode === 2 ? e.deltaY * 300 : e.deltaY;
-    const delta = -rawDeltaY * 0.0022;
+    const targetEl = e.target as HTMLElement | null;
+    const isOverZoomAxis = Boolean(targetEl && targetEl.closest('#zoom-axis'));
+
+    const factor = e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? 300 : 1;
+    const rawDeltaX = e.deltaX * factor;
+    const rawDeltaY = e.deltaY * factor;
+
+    // 1. Touchpad Pinch-to-Zoom (ctrlKey is set by browsers for two-finger trackpad pinch) or scrolling directly on #zoom-axis
+    if (e.ctrlKey || isOverZoomAxis) {
+      const zoomMultiplier = e.ctrlKey ? 0.011 : 0.0026;
+      targetZoom = clamp(targetZoom - rawDeltaY * zoomMultiplier, MIN_ZOOM, MAX_ZOOM);
+      wakeGlobeLoop();
+      return;
+    }
+
+    // 2. Detect Touchpad Two-Finger Swipe (left/right/up/down) vs Discrete Mouse Wheel
+    const now = performance.now();
+    const wheelDeltaY = (e as unknown as { wheelDeltaY?: number }).wheelDeltaY;
+    const isFractionalOrSmoothWheel =
+      e.deltaMode === 0 &&
+      (Math.abs(e.deltaX) > 0 ||
+        !Number.isInteger(e.deltaY) ||
+        Math.abs(e.deltaY) < 48 ||
+        (typeof wheelDeltaY === 'number' && Math.abs(wheelDeltaY) % 120 !== 0));
+
+    if (isFractionalOrSmoothWheel) {
+      lastTouchpadPanTime = now;
+    }
+
+    const isTouchpadTwoFingerSwipe =
+      Math.abs(rawDeltaX) > 0 || isFractionalOrSmoothWheel || now - lastTouchpadPanTime < 360;
+
+    const isLockedByTransit = getActiveTransitForCurrentTty() !== null;
+
+    if (isTouchpadTwoFingerSwipe && !isLockedByTransit) {
+      const sensitivity = 0.0046 / Math.sqrt(zoomLevel);
+      targetLon += rawDeltaX * sensitivity;
+      targetLat = clamp(targetLat + rawDeltaY * sensitivity, -MAX_LAT_TILT, MAX_LAT_TILT);
+      wakeGlobeLoop();
+      return;
+    }
+
+    // 3. Fallback: Discrete physical mouse wheel zooms in/out
+    const delta = -rawDeltaY * 0.0025;
     targetZoom = clamp(targetZoom + delta, MIN_ZOOM, MAX_ZOOM);
     wakeGlobeLoop();
   };
+
+  // Safari macOS/iOS native trackpad pinch GestureEvent support
+  let safariGestureStartZoom = zoomLevel;
+  const gestureTarget = globeTileEl || globeContainer;
+  gestureTarget.addEventListener(
+    'gesturestart' as keyof HTMLElementEventMap,
+    ((e: Event) => {
+      e.preventDefault();
+      safariGestureStartZoom = targetZoom;
+    }) as EventListener,
+    { passive: false }
+  );
+  gestureTarget.addEventListener(
+    'gesturechange' as keyof HTMLElementEventMap,
+    ((e: Event) => {
+      e.preventDefault();
+      const scale = (e as unknown as { scale?: number }).scale;
+      if (typeof scale === 'number' && scale > 0) {
+        targetZoom = clamp(safariGestureStartZoom * scale, MIN_ZOOM, MAX_ZOOM);
+        wakeGlobeLoop();
+      }
+    }) as EventListener,
+    { passive: false }
+  );
 
   if (globeTileEl) {
     globeTileEl.addEventListener('wheel', handleGlobeWheel, { passive: false });
@@ -3354,16 +3485,17 @@ if (globeCanvas && globeContainer) {
     gCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     gCtx.clearRect(0, 0, w, h);
 
+    const isTouchpadInteracting = now - lastTouchpadPanTime < 1200;
     const isPreBootRotating =
       bootState === 'unbooted' &&
       activePointerId === null &&
       activeTouches.size === 0 &&
+      !isTouchpadInteracting &&
       unbootedSelectedCityId === null;
 
-    // Pre-Boot State: Calm counterclockwise auto-rotation at +30° tilt (paused when a city is selected)
+    // Pre-Boot State: Calm counterclockwise auto-rotation (never resets or springs vertical tilt)
     if (isPreBootRotating) {
       targetLon += 0.00055;
-      targetLat += (PRE_BOOT_TILT - targetLat) * 0.06;
     }
 
     // Physical Flight Progress (TTY 1 and any VPN-unused session following TTY 1)
@@ -3458,10 +3590,17 @@ if (globeCanvas && globeContainer) {
     const isSettling =
       Math.abs(dLon) > 0.00015 || Math.abs(dLat) > 0.00015 || Math.abs(dZoom) > 0.0004;
 
-    if (isSettling) {
-      rotLon += dLon * 0.22;
-      rotLat = clamp(rotLat + dLat * 0.22, -MAX_LAT_TILT, MAX_LAT_TILT);
-      zoomLevel += dZoom * 0.25;
+    const isUserDirectInteracting =
+      activePointerId !== null || activeTouches.size > 0 || now - lastTouchpadPanTime < 140;
+
+    if (isUserDirectInteracting) {
+      rotLon = targetLon;
+      rotLat = clamp(targetLat, -MAX_LAT_TILT, MAX_LAT_TILT);
+      zoomLevel = targetZoom;
+    } else if (isSettling) {
+      rotLon += dLon * 0.35;
+      rotLat = clamp(rotLat + dLat * 0.35, -MAX_LAT_TILT, MAX_LAT_TILT);
+      zoomLevel += dZoom * 0.35;
     } else {
       rotLon = targetLon;
       rotLat = clamp(targetLat, -MAX_LAT_TILT, MAX_LAT_TILT);
@@ -3473,7 +3612,10 @@ if (globeCanvas && globeContainer) {
 
     const cx = w / 2;
     const cy = h / 2;
-    const radius = Math.min(w, h) * 0.42 * zoomLevel;
+    const heightBoost = clamp((h - 180) / 220, 0, 1);
+    const baseRadiusFactor = 0.42 + heightBoost * 0.05;
+    const baseRadius = Math.min(h * baseRadiusFactor, w * 0.47);
+    const radius = baseRadius * zoomLevel;
 
     // Compute frame rotation trig ONCE per frame
     const cLon = Math.cos(rotLon);
@@ -3660,8 +3802,9 @@ if (globeCanvas && globeContainer) {
     gCtx.lineWidth = 1.2;
     gCtx.stroke(coastCenter);
 
-    // 4A. Physical Flight Trajectory (Shown on TTY 1 or any VPN-unused session following TTY 1)
-    if (activeFlight && activeFollowsFlight) {
+    // 4A. Physical Flight Trajectory (White on TTY 1 / LOC-following session, Gray on VPN-active sessions)
+    if (activeFlight) {
+      const isPrimaryFlightView = activeFollowsFlight;
       const steps = 32;
       for (let s = 0; s < steps; s++) {
         const t1 = s / steps;
@@ -3680,8 +3823,17 @@ if (globeCanvas && globeContainer) {
           gCtx.beginPath();
           gCtx.moveTo(p1.x, p1.y);
           gCtx.lineTo(p2.x, p2.y);
-          gCtx.strokeStyle = isTraversed ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.35)';
-          gCtx.lineWidth = isTraversed ? 1.5 : 1.0;
+          if (isPrimaryFlightView) {
+            gCtx.strokeStyle = isTraversed
+              ? 'rgba(255, 255, 255, 0.95)'
+              : 'rgba(255, 255, 255, 0.35)';
+            gCtx.lineWidth = isTraversed ? 1.5 : 1.0;
+          } else {
+            gCtx.strokeStyle = isTraversed
+              ? 'rgba(165, 165, 165, 0.48)'
+              : 'rgba(140, 140, 140, 0.22)';
+            gCtx.lineWidth = isTraversed ? 1.1 : 0.8;
+          }
           if (!isTraversed) gCtx.setLineDash([3, 3]);
           gCtx.stroke();
           gCtx.setLineDash([]);
@@ -3696,80 +3848,119 @@ if (globeCanvas && globeContainer) {
       const curAlt = 1 + Math.sin(activeFlight.progress * Math.PI) * 0.05;
       const planePt = projectLatLon(curPos.lat, curPos.lon, radius * curAlt, cx, cy);
       if (planePt.z > 0) {
-        gCtx.fillStyle = '#ffffff';
+        gCtx.fillStyle = isPrimaryFlightView ? '#ffffff' : 'rgba(185, 185, 185, 0.75)';
         gCtx.beginPath();
-        gCtx.arc(planePt.x, planePt.y, 3.2, 0, Math.PI * 2);
+        gCtx.arc(planePt.x, planePt.y, isPrimaryFlightView ? 3.2 : 2.5, 0, Math.PI * 2);
         gCtx.fill();
       }
     }
 
-    // 4B. VPN Connection Line (TTY 2..5)
-    const activeVpnTransit = activeTty !== 1 ? activeVpnBridges[activeTty] : null;
-    if (activeVpnTransit) {
-      const steps = 32;
-      for (let s = 0; s < steps; s++) {
-        const t1 = s / steps;
-        const t2 = (s + 1) / steps;
-        const pos1 = interpolateGreatCircle(livePhysicalOrigin, activeVpnTransit.toCity, t1);
-        const pos2 = interpolateGreatCircle(livePhysicalOrigin, activeVpnTransit.toCity, t2);
+    // 4B. VPN Connection Lines for TTY 2..5 (All visible across sessions; gray for other TTYs, white for current TTY)
+    const drawVpnLineForTty = (ttyId: TtyId, isFocusedTty: boolean) => {
+      const vpnTransit = activeVpnBridges[ttyId];
+      if (vpnTransit) {
+        const steps = 32;
+        for (let s = 0; s < steps; s++) {
+          const t1 = s / steps;
+          const t2 = (s + 1) / steps;
+          const pos1 = interpolateGreatCircle(livePhysicalOrigin, vpnTransit.toCity, t1);
+          const pos2 = interpolateGreatCircle(livePhysicalOrigin, vpnTransit.toCity, t2);
 
-        const p1 = projectLatLon(pos1.lat, pos1.lon, radius, cx, cy);
-        const p2 = projectLatLon(pos2.lat, pos2.lon, radius, cx, cy);
+          const p1 = projectLatLon(pos1.lat, pos1.lon, radius, cx, cy);
+          const p2 = projectLatLon(pos2.lat, pos2.lon, radius, cx, cy);
 
-        if (p1.z > -0.05 && p2.z > -0.05) {
-          const isLocked = t2 <= activeVpnTransit.progress;
-          gCtx.beginPath();
-          gCtx.moveTo(p1.x, p1.y);
-          gCtx.lineTo(p2.x, p2.y);
-          gCtx.strokeStyle = isLocked ? 'rgba(255, 255, 255, 0.92)' : 'rgba(255, 255, 255, 0.30)';
-          gCtx.lineWidth = isLocked ? 1.4 : 0.9;
-          if (!isLocked) gCtx.setLineDash([2, 3]);
-          gCtx.stroke();
-          gCtx.setLineDash([]);
+          if (p1.z > -0.05 && p2.z > -0.05) {
+            const isLocked = t2 <= vpnTransit.progress;
+            gCtx.beginPath();
+            gCtx.moveTo(p1.x, p1.y);
+            gCtx.lineTo(p2.x, p2.y);
+            if (isFocusedTty) {
+              gCtx.strokeStyle = isLocked
+                ? 'rgba(255, 255, 255, 0.92)'
+                : 'rgba(255, 255, 255, 0.30)';
+              gCtx.lineWidth = isLocked ? 1.4 : 0.9;
+            } else {
+              gCtx.strokeStyle = isLocked
+                ? 'rgba(165, 165, 165, 0.45)'
+                : 'rgba(140, 140, 140, 0.22)';
+              gCtx.lineWidth = isLocked ? 1.05 : 0.8;
+            }
+            if (!isLocked) gCtx.setLineDash([2, 3]);
+            gCtx.stroke();
+            gCtx.setLineDash([]);
+          }
+        }
+
+        const packetPos = interpolateGreatCircle(
+          livePhysicalOrigin,
+          vpnTransit.toCity,
+          vpnTransit.progress
+        );
+        const packetPt = projectLatLon(packetPos.lat, packetPos.lon, radius, cx, cy);
+        if (packetPt.z > 0) {
+          const packetColor = isFocusedTty ? '#ffffff' : 'rgba(180, 180, 180, 0.65)';
+          gCtx.strokeStyle = packetColor;
+          gCtx.lineWidth = isFocusedTty ? 1.2 : 1.0;
+          gCtx.strokeRect(packetPt.x - 4, packetPt.y - 4, 8, 8);
+          gCtx.fillStyle = packetColor;
+          gCtx.fillRect(packetPt.x - 1.5, packetPt.y - 1.5, 3, 3);
+        }
+        return;
+      }
+
+      if (isWorkspaceUsingVpn(ttyId)) {
+        const vpnTargetCity = getCityById(vpnLocationIds[ttyId]);
+        const steps = 32;
+        for (let s = 0; s < steps; s++) {
+          const t1 = s / steps;
+          const t2 = (s + 1) / steps;
+          const pos1 = interpolateGreatCircle(livePhysicalOrigin, vpnTargetCity, t1);
+          const pos2 = interpolateGreatCircle(livePhysicalOrigin, vpnTargetCity, t2);
+
+          const p1 = projectLatLon(pos1.lat, pos1.lon, radius, cx, cy);
+          const p2 = projectLatLon(pos2.lat, pos2.lon, radius, cx, cy);
+
+          if (p1.z > -0.05 && p2.z > -0.05) {
+            gCtx.beginPath();
+            gCtx.moveTo(p1.x, p1.y);
+            gCtx.lineTo(p2.x, p2.y);
+            gCtx.strokeStyle = isFocusedTty
+              ? 'rgba(255, 255, 255, 0.85)'
+              : 'rgba(165, 165, 165, 0.42)';
+            gCtx.lineWidth = isFocusedTty ? 1.3 : 1.05;
+            gCtx.stroke();
+          }
         }
       }
+    };
 
-      const packetPos = interpolateGreatCircle(
-        livePhysicalOrigin,
-        activeVpnTransit.toCity,
-        activeVpnTransit.progress
-      );
-      const packetPt = projectLatLon(packetPos.lat, packetPos.lon, radius, cx, cy);
-      if (packetPt.z > 0) {
-        gCtx.strokeStyle = '#ffffff';
-        gCtx.lineWidth = 1.2;
-        gCtx.strokeRect(packetPt.x - 4, packetPt.y - 4, 8, 8);
-        gCtx.fillStyle = '#ffffff';
-        gCtx.fillRect(packetPt.x - 1.5, packetPt.y - 1.5, 3, 3);
+    // Pass 1: Draw other TTYs' VPN lines in subtle gray
+    for (const ttyId of [2, 3, 4, 5] as TtyId[]) {
+      if (ttyId !== activeTty) {
+        drawVpnLineForTty(ttyId, false);
       }
-    } else if (activeTty !== 1 && isWorkspaceUsingVpn(activeTty)) {
-      const vpnTargetCity = getCityById(vpnLocationIds[activeTty]);
-      const steps = 32;
-      for (let s = 0; s < steps; s++) {
-        const t1 = s / steps;
-        const t2 = (s + 1) / steps;
-        const pos1 = interpolateGreatCircle(livePhysicalOrigin, vpnTargetCity, t1);
-        const pos2 = interpolateGreatCircle(livePhysicalOrigin, vpnTargetCity, t2);
-
-        const p1 = projectLatLon(pos1.lat, pos1.lon, radius, cx, cy);
-        const p2 = projectLatLon(pos2.lat, pos2.lon, radius, cx, cy);
-
-        if (p1.z > -0.05 && p2.z > -0.05) {
-          gCtx.beginPath();
-          gCtx.moveTo(p1.x, p1.y);
-          gCtx.lineTo(p2.x, p2.y);
-          gCtx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-          gCtx.lineWidth = 1.3;
-          gCtx.stroke();
-        }
-      }
+    }
+    // Pass 2: Draw active TTY's VPN line on top in bright white
+    if (activeTty !== 1) {
+      drawVpnLineForTty(activeTty, true);
     }
 
     // 5. Location Points
     const isBootedOrBooting = bootState !== 'unbooted';
     const activeWorkspaceCityId = getActiveWorkspaceLocationId();
+    const otherVpnCityIds = new Set<string>();
+    if (isBootedOrBooting) {
+      for (const ttyId of [2, 3, 4, 5] as TtyId[]) {
+        if (ttyId !== activeTty && vpnLocationIds[ttyId]) {
+          otherVpnCityIds.add(vpnLocationIds[ttyId]!);
+        }
+      }
+    }
     projectedCities = [];
-    gCtx.font = '10px "JetBrains Mono", monospace';
+    const isLargeGlobe = h >= 260 && w >= 540;
+    gCtx.font = isLargeGlobe
+      ? '11.5px "JetBrains Mono", monospace'
+      : '10px "JetBrains Mono", monospace';
 
     for (const item of precomputedCities) {
       const { city, v } = item;
@@ -3782,6 +3973,7 @@ if (globeCanvas && globeContainer) {
 
       if (pz > 0.08) {
         const isCurrent = isBootedOrBooting && city.id === activeWorkspaceCityId;
+        const isOtherVpnNode = !isCurrent && otherVpnCityIds.has(city.id);
         const isSelected = isBootedOrBooting
           ? city.id === globeSelectedCityId
           : city.id === unbootedSelectedCityId;
@@ -3789,7 +3981,13 @@ if (globeCanvas && globeContainer) {
 
         gCtx.fillStyle = `rgba(255, 255, 255, ${isCurrent || isSelected ? '1.0' : alpha.toFixed(2)})`;
         gCtx.beginPath();
-        gCtx.arc(px, py, isCurrent || isSelected ? 2.8 : 2.0, 0, Math.PI * 2);
+        gCtx.arc(
+          px,
+          py,
+          isCurrent || isSelected ? (isLargeGlobe ? 3.3 : 2.8) : isLargeGlobe ? 2.3 : 2.0,
+          0,
+          Math.PI * 2
+        );
         gCtx.fill();
 
         if (isCurrent) {
@@ -3801,6 +3999,10 @@ if (globeCanvas && globeContainer) {
             gCtx.lineWidth = 0.9;
             gCtx.strokeRect(px - 9, py - 9, 18, 18);
           }
+        } else if (isOtherVpnNode) {
+          gCtx.strokeStyle = 'rgba(165, 165, 165, 0.50)';
+          gCtx.lineWidth = 1.0;
+          gCtx.strokeRect(px - 5, py - 5, 10, 10);
         }
         if (isSelected && !isCurrent) {
           gCtx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
@@ -3814,7 +4016,7 @@ if (globeCanvas && globeContainer) {
           isCurrent || isSelected
             ? '#ffffff'
             : `rgba(255, 255, 255, ${(alpha * 0.78).toFixed(2)})`;
-        gCtx.fillText(city.name.toUpperCase(), px + 8, py + 3);
+        gCtx.fillText(city.name.toUpperCase(), px + (isLargeGlobe ? 9 : 8), py + 3.5);
       }
     }
 
@@ -3824,7 +4026,8 @@ if (globeCanvas && globeContainer) {
       activeFlight !== null ||
       hasActiveVpnBridge ||
       activePointerId !== null ||
-      activeTouches.size > 0;
+      activeTouches.size > 0 ||
+      now - lastTouchpadPanTime < 180;
 
     if (needsNextFrame) {
       requestAnimationFrame(renderGlobe);

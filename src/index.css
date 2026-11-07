@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+html,
+body,
+#viewport-shell {
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
+}
+
 .crt-scanlines {
   background: linear-gradient(
     to bottom,
