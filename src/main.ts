@@ -16,7 +16,7 @@ interface ModelOption {
 }
 
 interface ProviderInfo {
-  id: 'google' | 'openai' | 'anthropic' | 'xai' | 'deepseek';
+  id: 'google' | 'openrouter' | 'anthropic' | 'openai' | 'xai' | 'deepseek';
   name: string;
   keyPlaceholder: string;
   note: string;
@@ -27,65 +27,137 @@ const AI_PROVIDERS: ProviderInfo[] = [
   {
     id: 'google',
     name: 'Google Gemini (Free Tier 권장)',
-    keyPlaceholder: 'credential token...',
-    note: 'gemini-flash-lite-latest 권장',
+    keyPlaceholder: 'AIzaSy...',
+    note: 'Google AI Studio',
     models: [
       { id: 'gemini-flash-lite-latest', label: 'Flash Lite Latest (권장)', tier: 'Free Tier' },
-      { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite', tier: 'Flash Lite' },
-      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite', tier: 'Flash Lite' },
+      { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', tier: 'Flash Lite' },
+      { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', tier: 'Flash Lite' },
       { id: 'gemini-flash-latest', label: 'Flash Latest', tier: 'Flash' },
       { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', tier: 'Flash' },
       { id: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', tier: 'Flash' },
       { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', tier: 'Flash' },
       { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', tier: 'Flash' },
       { id: 'gemini-4-argon', label: 'Gemini 4 Argon', tier: 'Pro' },
+      { id: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', tier: 'Preview' },
+      { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', tier: 'Legacy' },
+      { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'Legacy' },
+      { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', tier: 'Legacy' },
     ],
   },
   {
-    id: 'openai',
-    name: 'OpenAI',
-    keyPlaceholder: 'credential token...',
-    note: 'OpenAI Platform',
+    id: 'openrouter',
+    name: 'OpenRouter',
+    keyPlaceholder: 'sk-or-v1-...',
+    note: 'OpenRouter API (모든 모델 호환)',
     models: [
-      { id: 'gpt-6-astra', label: 'GPT-6 Astra', tier: 'Flagship' },
-      { id: 'gpt-6.1-sol', label: 'GPT-6.1 Sol', tier: 'Fast Coding' },
-      { id: 'gpt-6.1-terra', label: 'GPT-6.1 Terra', tier: 'Lightweight' },
-      { id: 'o3-pro', label: 'o3-pro', tier: 'Reasoning' },
+      { id: 'openrouter/auto', label: 'OpenRouter Auto', tier: 'Auto' },
+      { id: 'anthropic/claude-haiku-5.5', label: 'Claude Haiku 5.5', tier: 'Fast' },
+      { id: 'anthropic/claude-sonnet-5.5', label: 'Claude Sonnet 5.5', tier: 'Balanced' },
+      { id: 'anthropic/claude-opus-5.5', label: 'Claude Opus 5.5', tier: 'Flagship' },
+      { id: 'google/gemini-3.8-flash', label: 'Gemini 3.8 Flash', tier: 'Fast' },
+      { id: 'google/gemini-4-argon', label: 'Gemini 4 Argon', tier: 'Pro' },
+      { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash', tier: 'Fast' },
+      { id: 'openai/gpt-6.1-sol', label: 'GPT-6.1 Sol', tier: 'Fast Coding' },
+      { id: 'openai/gpt-6-astra', label: 'GPT-6 Astra', tier: 'Flagship' },
+      { id: 'deepseek/deepseek-v4.1-flash', label: 'DeepSeek-V4.1 Flash', tier: 'Fast' },
+      { id: 'deepseek/deepseek-v4-pro', label: 'DeepSeek-V4 Pro', tier: 'Flagship' },
+      { id: 'x-ai/grok-4.7', label: 'Grok 4.7', tier: 'Flagship' },
+      { id: 'deepseek/deepseek-chat-v3-0324:free', label: 'DeepSeek V3 (Free)', tier: 'Free' },
+      { id: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Free)', tier: 'Free' },
     ],
   },
   {
     id: 'anthropic',
     name: 'Anthropic',
-    keyPlaceholder: 'credential token...',
-    note: 'Anthropic Console',
+    keyPlaceholder: 'sk-ant-...',
+    note: 'Anthropic Console (버전 구분에 하이픈 사용)',
     models: [
-      { id: 'claude-sonnet-5.5', label: 'Claude Sonnet 5.5', tier: 'Balanced' },
-      { id: 'claude-haiku-5.5', label: 'Claude Haiku 5.5', tier: 'Fast' },
-      { id: 'claude-opus-5.5', label: 'Claude Opus 5.5', tier: 'Flagship' },
-      { id: 'claude-fable-5.1', label: 'Claude Fable 5.1', tier: 'Reasoning' },
+      { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5', tier: 'Fast' },
+      { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', tier: 'Balanced' },
+      { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', tier: 'Flagship' },
+      { id: 'claude-fable-5-1', label: 'Claude Fable 5.1', tier: 'Reasoning' },
+      { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', tier: 'Balanced' },
+      { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', tier: 'Flagship' },
+      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', tier: 'Flagship' },
+      { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', tier: 'Fast' },
+      { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', tier: 'Balanced' },
+      { id: 'claude-opus-4-1', label: 'Claude Opus 4.1', tier: 'Flagship' },
+      { id: 'claude-3-7-sonnet-latest', label: 'Claude 3.7 Sonnet (Latest)', tier: 'Legacy' },
+      { id: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (Latest)', tier: 'Legacy' },
+    ],
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    keyPlaceholder: 'sk-proj-...',
+    note: 'OpenAI Platform',
+    models: [
+      { id: 'gpt-6-astra', label: 'GPT-6 Astra', tier: 'Flagship' },
+      { id: 'gpt-6.1-sol', label: 'GPT-6.1 Sol', tier: 'Fast Coding' },
+      { id: 'gpt-6.1-terra', label: 'GPT-6.1 Terra', tier: 'Lightweight' },
+      { id: 'gpt-6-luna', label: 'GPT-6 Luna', tier: 'High-Volume' },
+      { id: 'gpt-6-cyber', label: 'GPT-6 Cyber', tier: 'Security' },
+      { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol', tier: 'Balanced' },
+      { id: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', tier: 'Mid-tier' },
+      { id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', tier: 'Fast' },
+      { id: 'gpt-5.5', label: 'GPT-5.5', tier: 'Standard' },
+      { id: 'o3-pro', label: 'o3-pro', tier: 'Reasoning' },
+      { id: 'o3', label: 'o3', tier: 'Reasoning' },
+      { id: 'o4-mini', label: 'o4-mini', tier: 'Reasoning' },
+      { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', tier: 'Legacy Fast' },
+      { id: 'gpt-4o-mini', label: 'GPT-4o Mini', tier: 'Legacy' },
     ],
   },
   {
     id: 'xai',
     name: 'xAI (Grok)',
-    keyPlaceholder: 'credential token...',
+    keyPlaceholder: 'xai-...',
     note: 'xAI Console',
     models: [
       { id: 'grok-4.7', label: 'Grok 4.7', tier: 'Flagship' },
       { id: 'grok-4.6', label: 'Grok 4.6', tier: 'Standard' },
+      { id: 'grok-420-reasoning', label: 'Grok 420 Reasoning', tier: 'Reasoning' },
+      { id: 'latest', label: 'Grok Latest (Rolling)', tier: 'Auto' },
+      { id: 'grok-3', label: 'Grok 3', tier: 'Legacy' },
+      { id: 'grok-3-mini', label: 'Grok 3 Mini', tier: 'Legacy Fast' },
     ],
   },
   {
     id: 'deepseek',
     name: 'DeepSeek',
-    keyPlaceholder: 'credential token...',
+    keyPlaceholder: 'sk-...',
     note: 'DeepSeek Platform',
     models: [
+      { id: 'deepseek-flash', label: 'DeepSeek Flash (Default)', tier: 'Fast' },
       { id: 'deepseek-v4.1-flash', label: 'DeepSeek-V4.1 Flash', tier: 'Fast' },
+      { id: 'deepseek-v4-flash', label: 'DeepSeek-V4 Flash', tier: 'Fast' },
       { id: 'deepseek-v4-pro', label: 'DeepSeek-V4 Pro', tier: 'Flagship' },
+      { id: 'deepseek-chat', label: 'DeepSeek Chat (Legacy)', tier: 'Legacy' },
+      { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner (Legacy)', tier: 'Legacy' },
     ],
   },
 ];
+
+const ANTHROPIC_DOT_TO_HYPHEN_MAP: Record<string, string> = {
+  'claude-sonnet-5.5': 'claude-sonnet-5-5',
+  'claude-haiku-5.5': 'claude-haiku-5-5',
+  'claude-opus-5.5': 'claude-opus-5-5',
+  'claude-fable-5.1': 'claude-fable-5-1',
+  'claude-opus-4.8': 'claude-opus-4-8',
+  'claude-opus-4.6': 'claude-opus-4-6',
+  'claude-sonnet-4.5': 'claude-sonnet-4-5',
+  'claude-haiku-4.5': 'claude-haiku-4-5',
+  'claude-opus-4.1': 'claude-opus-4-1',
+};
+
+function normalizeProviderModelId(providerId: ProviderInfo['id'], modelId: string): string {
+  const trimmed = modelId.trim();
+  if (providerId === 'anthropic' && ANTHROPIC_DOT_TO_HYPHEN_MAP[trimmed]) {
+    return ANTHROPIC_DOT_TO_HYPHEN_MAP[trimmed];
+  }
+  return trimmed;
+}
 
 // 4-Tier Asset System (USD | BTC | LN | XMR)
 export type AssetSymbol = 'USD' | 'BTC' | 'LN' | 'XMR';
@@ -93,6 +165,7 @@ export type AssetSymbol = 'USD' | 'BTC' | 'LN' | 'XMR';
 interface SavedConfig {
   providerId: ProviderInfo['id'];
   modelId: string;
+  modelsByProvider: Partial<Record<ProviderInfo['id'], string>>;
   apiKeys: Partial<Record<ProviderInfo['id'], string>>;
   crtScanlines: boolean;
 }
@@ -105,10 +178,33 @@ function loadConfig(): SavedConfig {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<SavedConfig>;
       const provider = AI_PROVIDERS.find((p) => p.id === parsed.providerId) || AI_PROVIDERS[0];
-      const model = provider.models.find((m) => m.id === parsed.modelId) || provider.models[0];
+      const savedModelsByProvider: Partial<Record<ProviderInfo['id'], string>> =
+        parsed.modelsByProvider && typeof parsed.modelsByProvider === 'object'
+          ? { ...parsed.modelsByProvider }
+          : {};
+
+      for (const [pid, mid] of Object.entries(savedModelsByProvider)) {
+        if (typeof mid === 'string' && mid.trim()) {
+          savedModelsByProvider[pid as ProviderInfo['id']] = normalizeProviderModelId(
+            pid as ProviderInfo['id'],
+            mid
+          );
+        }
+      }
+
+      const rawModelId =
+        typeof parsed.modelId === 'string'
+          ? normalizeProviderModelId(provider.id, parsed.modelId)
+          : '';
+      const resolvedModelId =
+        rawModelId || savedModelsByProvider[provider.id] || provider.models[0].id;
+
+      savedModelsByProvider[provider.id] = resolvedModelId;
+
       return {
         providerId: provider.id,
-        modelId: model.id,
+        modelId: resolvedModelId,
+        modelsByProvider: savedModelsByProvider,
         apiKeys: parsed.apiKeys && typeof parsed.apiKeys === 'object' ? parsed.apiKeys : {},
         crtScanlines: parsed.crtScanlines ?? true,
       };
@@ -119,6 +215,7 @@ function loadConfig(): SavedConfig {
   return {
     providerId: 'google',
     modelId: 'gemini-flash-lite-latest',
+    modelsByProvider: { google: 'gemini-flash-lite-latest' },
     apiKeys: {},
     crtScanlines: true,
   };
@@ -126,6 +223,10 @@ function loadConfig(): SavedConfig {
 
 function saveConfig(cfg: SavedConfig) {
   try {
+    cfg.modelsByProvider = cfg.modelsByProvider || {};
+    if (cfg.modelId && cfg.modelId.trim()) {
+      cfg.modelsByProvider[cfg.providerId] = cfg.modelId.trim();
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
   } catch {
     // Ignore storage quota errors
@@ -155,6 +256,25 @@ function getLocalSavedKey(providerId: ProviderInfo['id'] = config.providerId): s
 
 function getCurrentKey(providerId: ProviderInfo['id'] = config.providerId): string {
   return getLocalSavedKey(providerId);
+}
+
+function extractApiErrorMessage(data: any, status: number): string {
+  if (!data) return `HTTP ${status}`;
+  if (typeof data === 'string') return data;
+  const errObj = data.error;
+  if (typeof errObj === 'string') return errObj;
+  if (errObj && typeof errObj === 'object') {
+    const baseMsg = errObj.message || errObj.type || `HTTP ${status}`;
+    const rawMeta = errObj.metadata?.raw;
+    if (typeof rawMeta === 'string' && rawMeta.trim()) {
+      return `${baseMsg} (${rawMeta.trim()})`;
+    }
+    return String(baseMsg);
+  }
+  if (typeof data.message === 'string' && data.message.trim()) {
+    return data.message.trim();
+  }
+  return `HTTP ${status}`;
 }
 
 function getGoogleEndpoint(modelId: string, key: string): string {
@@ -199,20 +319,33 @@ async function fetchViaGatewayOrDirect(
     return { ok: res.ok, status: res.status, data };
   }
 
-  if (providerId === 'openai' || providerId === 'xai' || providerId === 'deepseek') {
+  if (
+    providerId === 'openai' ||
+    providerId === 'xai' ||
+    providerId === 'deepseek' ||
+    providerId === 'openrouter'
+  ) {
     const endpoint =
       providerId === 'openai'
         ? 'https://api.openai.com/v1/chat/completions'
         : providerId === 'xai'
           ? 'https://api.x.ai/v1/chat/completions'
-          : 'https://api.deepseek.com/chat/completions';
+          : providerId === 'openrouter'
+            ? 'https://openrouter.ai/api/v1/chat/completions'
+            : 'https://api.deepseek.com/chat/completions';
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    };
+    if (providerId === 'openrouter') {
+      headers['HTTP-Referer'] = window.location.origin || 'https://hacker-network.local';
+      headers['X-Title'] = 'HACKER_NETWORK';
+    }
 
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
-      },
+      headers,
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
@@ -240,7 +373,16 @@ async function fetchViaGatewayOrDirect(
 async function runKeyTest() {
   const key = getCurrentKey();
   const provider = AI_PROVIDERS.find((p) => p.id === config.providerId) || AI_PROVIDERS[0];
-  const modelId = config.modelId;
+  const modelId = config.modelId.trim();
+
+  if (!modelId) {
+    keyTestState = {
+      status: 'error',
+      message: 'ERR: 모델명(model_id)을 입력해주세요.',
+    };
+    renderModalOnly();
+    return;
+  }
 
   if (!key) {
     keyTestState = {
@@ -279,7 +421,7 @@ async function runKeyTest() {
 
     const { ok, status, data } = await fetchViaGatewayOrDirect(provider.id, modelId, key, payload);
     if (!ok) {
-      throw new Error(data?.error?.message || `HTTP ${status}`);
+      throw new Error(extractApiErrorMessage(data, status));
     }
     const ms = Math.round(performance.now() - startedAt);
     keyTestState = {
@@ -1647,7 +1789,7 @@ async function callProviderLlm(systemPrompt: string, userPrompt: string): Promis
 
   const { ok, status, data } = await fetchViaGatewayOrDirect(provider.id, modelId, key, payload);
   if (!ok) {
-    throw new Error(data?.error?.message || `HTTP ${status}`);
+    throw new Error(extractApiErrorMessage(data, status));
   }
 
   if (provider.id === 'google') {
@@ -2082,14 +2224,20 @@ function renderModalOnly() {
   }
 
   const activeProvider = AI_PROVIDERS.find((p) => p.id === config.providerId) || AI_PROVIDERS[0];
-  const activeModel = activeProvider.models.find((m) => m.id === config.modelId) || activeProvider.models[0];
+  const matchedPreset = activeProvider.models.find((m) => m.id === config.modelId);
+  const isCustomModel = !matchedPreset;
   const localKey = getLocalSavedKey(activeProvider.id);
+  const escapedModelId = (config.modelId || '').replace(/"/g, '&quot;');
+  const escapedTestMessage = keyTestState.message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
   modalMount.innerHTML = `
     <div id="hypr-backdrop" class="fixed inset-0 top-10 z-50 bg-black/75 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-6">
       <section
         id="hypr-modal-box"
-        class="hypr-window w-full max-w-md bg-[#090909]/98 border border-neutral-300 p-4 text-xs font-mono space-y-3.5"
+        class="hypr-window w-full max-w-md max-h-[calc(100vh-3.5rem)] overflow-y-auto bg-[#090909]/98 border border-neutral-300 p-4 text-xs font-mono space-y-3.5"
       >
         <div class="flex items-center justify-between border-b border-neutral-800 pb-2 text-neutral-400">
           <span class="truncate">~/.config/hypr/ai.conf</span>
@@ -2118,8 +2266,11 @@ function renderModalOnly() {
           </select>
         </div>
 
-        <div class="space-y-1">
-          <label for="model-select" class="block text-neutral-400">model</label>
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="model-select" class="block text-neutral-400">model (프리셋 또는 직접 입력)</label>
+            <span class="text-[10px] text-neutral-500">커스텀 모델명 입력 가능</span>
+          </div>
           <select
             id="model-select"
             class="w-full bg-black border border-neutral-700 focus:border-neutral-200 px-2.5 py-2 text-neutral-100 focus:outline-none cursor-pointer"
@@ -2127,13 +2278,27 @@ function renderModalOnly() {
             ${activeProvider.models
               .map(
                 (m) => `
-              <option value="${m.id}" ${m.id === activeModel.id ? 'selected' : ''}>
+              <option value="${m.id}" ${m.id === config.modelId ? 'selected' : ''}>
                 ${m.label} (${m.id}) · ${m.tier}
               </option>
             `
               )
               .join('')}
+            <option value="__custom__" ${isCustomModel ? 'selected' : ''}>
+              [직접 입력 / Custom Model ID]
+            </option>
           </select>
+          <input
+            id="custom-model-input"
+            type="text"
+            value="${escapedModelId}"
+            placeholder="직접 모델 ID 입력 (예: claude-haiku-4-5, google/gemini-2.5-flash)"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            class="w-full bg-black border border-neutral-700 focus:border-neutral-200 px-2.5 py-1.5 text-neutral-100 select-text touch-manipulation focus:outline-none"
+          />
         </div>
 
         <div class="space-y-1.5">
@@ -2168,15 +2333,13 @@ function renderModalOnly() {
               ${keyTestState.status === 'testing' ? '...' : 'TEST'}
             </button>
           </div>
-          <div class="px-2.5 py-1.5 bg-black border border-neutral-800 text-[11px] truncate ${
+          <div class="px-2.5 py-1.5 bg-black border border-neutral-800 text-[11px] break-words whitespace-pre-wrap max-h-28 overflow-y-auto leading-relaxed select-text ${
             keyTestState.status === 'success'
               ? 'text-neutral-100 border-neutral-400'
               : keyTestState.status === 'error'
-                ? 'text-neutral-400 border-neutral-600'
+                ? 'text-red-400 border-red-900/80'
                 : 'text-neutral-500'
-          }">
-            ${keyTestState.message}
-          </div>
+          }">${escapedTestMessage}</div>
         </div>
 
         <!-- Save File Management (Import / Export / Trash Reset) -->
@@ -2221,7 +2384,7 @@ function renderModalOnly() {
           </div>
           ${
             saveStatusMessage
-              ? `<div class="text-[11px] text-neutral-300 truncate">${saveStatusMessage}</div>`
+              ? `<div class="text-[11px] text-neutral-300 break-words">${saveStatusMessage}</div>`
               : ''
           }
         </div>
@@ -2309,7 +2472,9 @@ function renderModalOnly() {
     const found = AI_PROVIDERS.find((p) => p.id === pid);
     if (found) {
       config.providerId = found.id;
-      config.modelId = found.models[0].id;
+      const rememberedModel = config.modelsByProvider?.[found.id];
+      config.modelId =
+        rememberedModel && rememberedModel.trim() ? rememberedModel.trim() : found.models[0].id;
       saveConfig(config);
       keyTestState = {
         status: 'idle',
@@ -2320,12 +2485,31 @@ function renderModalOnly() {
   });
 
   const modelSelect = document.getElementById('model-select') as HTMLSelectElement | null;
+  const customModelInput = document.getElementById('custom-model-input') as HTMLInputElement | null;
+
   modelSelect?.addEventListener('change', (e) => {
     const mid = (e.target as HTMLSelectElement).value;
+    if (mid === '__custom__') {
+      customModelInput?.focus();
+      customModelInput?.select();
+      return;
+    }
     if (mid) {
       config.modelId = mid;
+      if (customModelInput) {
+        customModelInput.value = mid;
+      }
       saveConfig(config);
-      renderModalOnly();
+    }
+  });
+
+  customModelInput?.addEventListener('input', (e) => {
+    const val = (e.target as HTMLInputElement).value.trim();
+    config.modelId = val;
+    saveConfig(config);
+    if (modelSelect) {
+      const hasPreset = activeProvider.models.some((m) => m.id === val);
+      modelSelect.value = hasPreset ? val : '__custom__';
     }
   });
 

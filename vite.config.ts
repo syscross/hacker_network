@@ -130,20 +130,33 @@ export default defineConfig({
                 return;
               }
 
-              if (providerId === 'openai' || providerId === 'xai' || providerId === 'deepseek') {
+              if (
+                providerId === 'openai' ||
+                providerId === 'xai' ||
+                providerId === 'deepseek' ||
+                providerId === 'openrouter'
+              ) {
                 const endpoint =
                   providerId === 'openai'
                     ? 'https://api.openai.com/v1/chat/completions'
                     : providerId === 'xai'
                       ? 'https://api.x.ai/v1/chat/completions'
-                      : 'https://api.deepseek.com/chat/completions';
+                      : providerId === 'openrouter'
+                        ? 'https://openrouter.ai/api/v1/chat/completions'
+                        : 'https://api.deepseek.com/chat/completions';
+
+                const headers: Record<string, string> = {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${effectiveKey}`,
+                };
+                if (providerId === 'openrouter') {
+                  headers['HTTP-Referer'] = 'https://hacker-network.local';
+                  headers['X-Title'] = 'HACKER_NETWORK';
+                }
 
                 const upstream = await fetch(endpoint, {
                   method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${effectiveKey}`,
-                  },
+                  headers,
                   body: JSON.stringify(body.payload || {}),
                 });
                 const text = await upstream.text();
